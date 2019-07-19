@@ -55,6 +55,36 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         private readonly SortedSet<int> PriorityChangePoints;
 
         /// <summary>
+        /// The set of default hashed states.
+        /// </summary>
+        private readonly HashSet<int> DefaultHashedStates;
+
+        /// <summary>
+        /// The set of inbox-only hashed states.
+        /// </summary>
+        private readonly HashSet<int> InboxOnlyHashedStates;
+
+        /// <summary>
+        /// The set of custom hashed states.
+        /// </summary>
+        private readonly HashSet<int> CustomHashedStates;
+
+        /// <summary>
+        /// The set of full hashed states.
+        /// </summary>
+        private readonly HashSet<int> FullHashedStates;
+
+        /// <summary>
+        /// The number of explored executions.
+        /// </summary>
+        private int Epochs;
+
+        /// <summary>
+        /// True if a bug was found in the current iteration, else false.
+        /// </summary>
+        private bool IsBugFound;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="PCTStrategy"/> class. It uses
         /// the default random number generator (seed is based on current time).
         /// </summary>
@@ -76,179 +106,53 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
             this.MaxPrioritySwitchPoints = maxPrioritySwitchPoints;
             this.PrioritizedOperations = new List<IAsyncOperation>();
             this.PriorityChangePoints = new SortedSet<int>();
+            this.DefaultHashedStates = new HashSet<int>();
+            this.InboxOnlyHashedStates = new HashSet<int>();
+            this.CustomHashedStates = new HashSet<int>();
+            this.FullHashedStates = new HashSet<int>();
+            this.Epochs = 0;
+            this.IsBugFound = false;
         }
 
         /// <summary>
         /// Returns the next asynchronous operation to schedule.
         /// </summary>
-        public bool GetNext(out IAsyncOperation next, List<IAsyncOperation> ops, IAsyncOperation current)
+        public bool GetNext(IAsyncOperation current, List<IAsyncOperation> ops, out IAsyncOperation next)
         {
-            next = null;
-            return this.GetNextHelper(ref next, ops, current);
-        }
-
-        /// <summary>
-        /// Returns the next boolean choice.
-        /// </summary>
-        public bool GetNextBooleanChoice(int maxValue, out bool next)
-        {
-            next = false;
-            if (this.RandomNumberGenerator.Next(maxValue) == 0)
+            if (!ops.Any(op => op.Status is AsyncOperationStatus.Enabled))
             {
-                next = true;
+                // Fail fast if there are no enabled operations.
+                next = null;
+                return false;
             }
 
-            this.ScheduledSteps++;
+            this.CaptureExecutionStep(current);
 
-            return true;
-        }
-
-        /// <summary>
-        /// Returns the next integer choice.
-        /// </summary>
-        public bool GetNextIntegerChoice(int maxValue, out int next)
-        {
-            next = this.RandomNumberGenerator.Next(maxValue);
-            this.ScheduledSteps++;
-            return true;
-        }
-
-        /// <summary>
-        /// Forces the next asynchronous operation to be scheduled.
-        /// </summary>
-        public void ForceNext(IAsyncOperation next, List<IAsyncOperation> ops, IAsyncOperation current)
-        {
-            this.GetNextHelper(ref next, ops, current);
-        }
-
-        /// <summary>
-        /// Returns or forces the next asynchronous operation to schedule.
-        /// </summary>
-        private bool GetNextHelper(ref IAsyncOperation next, List<IAsyncOperation> ops, IAsyncOperation current)
-        {
             var enabledOperations = ops.Where(op => op.Status is AsyncOperationStatus.Enabled).ToList();
-            if (enabledOperations.Count == 0)
-            {
-                return false;
-            }
-
-            IAsyncOperation highestEnabledOp = this.GetPrioritizedOperation(enabledOperations, current);
-            if (next is null)
-            {
-                next = highestEnabledOp;
-            }
+            next = this.GetPrioritizedOperation(current, enabledOperations);
 
             this.ScheduledSteps++;
-
             return true;
         }
 
         /// <summary>
-        /// Forces the next boolean choice.
+        /// Captures metadata related to the current execution step, and returns
+        /// a value representing the current program state.
         /// </summary>
-        public void ForceNextBooleanChoice(int maxValue, bool next)
+        private int CaptureExecutionStep(IAsyncOperation current)
         {
-            this.ScheduledSteps++;
-        }
-
-        /// <summary>
-        /// Forces the next integer choice.
-        /// </summary>
-        public void ForceNextIntegerChoice(int maxValue, int next)
-        {
-            this.ScheduledSteps++;
-        }
-
-        /// <summary>
-        /// Prepares for the next scheduling iteration. This is invoked
-        /// at the end of a scheduling iteration. It must return false
-        /// if the scheduling strategy should stop exploring.
-        /// </summary>
-        public bool PrepareForNextIteration()
-        {
-            this.ScheduleLength = Math.Max(this.ScheduleLength, this.ScheduledSteps);
-            this.ScheduledSteps = 0;
-
-            this.PrioritizedOperations.Clear();
-            this.PriorityChangePoints.Clear();
-
-            var range = new List<int>();
-            for (int idx = 0; idx < this.ScheduleLength; idx++)
-            {
-                range.Add(idx);
-            }
-
-            foreach (int point in this.Shuffle(range).Take(this.MaxPrioritySwitchPoints))
-            {
-                this.PriorityChangePoints.Add(point);
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Resets the scheduling strategy. This is typically invoked by
-        /// parent strategies to reset child strategies.
-        /// </summary>
-        public void Reset()
-        {
-            this.ScheduleLength = 0;
-            this.ScheduledSteps = 0;
-            this.PrioritizedOperations.Clear();
-            this.PriorityChangePoints.Clear();
-        }
-
-        /// <summary>
-        /// Returns the scheduled steps.
-        /// </summary>
-        public int GetScheduledSteps() => this.ScheduledSteps;
-
-        /// <summary>
-        /// True if the scheduling strategy has reached the max
-        /// scheduling steps for the given scheduling iteration.
-        /// </summary>
-        public bool HasReachedMaxSchedulingSteps()
-        {
-            if (this.MaxScheduledSteps == 0)
-            {
-                return false;
-            }
-
-            return this.ScheduledSteps >= this.MaxScheduledSteps;
-        }
-
-        /// <summary>
-        /// Checks if this is a fair scheduling strategy.
-        /// </summary>
-        public bool IsFair() => false;
-
-        /// <summary>
-        /// Returns a textual description of the scheduling strategy.
-        /// </summary>
-        public string GetDescription()
-        {
-            var text = $"PCT[priority change points '{this.MaxPrioritySwitchPoints}' [";
-
-            int idx = 0;
-            foreach (var points in this.PriorityChangePoints)
-            {
-                text += points;
-                if (idx < this.PriorityChangePoints.Count - 1)
-                {
-                    text += ", ";
-                }
-
-                idx++;
-            }
-
-            text += "], seed '" + this.RandomNumberGenerator.Seed + "']";
-            return text;
+            int state = current.DefaultHashedState;
+            this.DefaultHashedStates.Add(current.DefaultHashedState);
+            this.InboxOnlyHashedStates.Add(current.InboxOnlyHashedState);
+            this.CustomHashedStates.Add(current.CustomHashedState);
+            this.FullHashedStates.Add(current.FullHashedState);
+            return state;
         }
 
         /// <summary>
         /// Returns the prioritized operation.
         /// </summary>
-        private IAsyncOperation GetPrioritizedOperation(List<IAsyncOperation> ops, IAsyncOperation current)
+        private IAsyncOperation GetPrioritizedOperation(IAsyncOperation current, List<IAsyncOperation> ops)
         {
             if (this.PrioritizedOperations.Count == 0)
             {
@@ -314,6 +218,102 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         }
 
         /// <summary>
+        /// Moves the current priority change point forward. This is a useful
+        /// optimization when a priority change point is assigned in either a
+        /// sequential execution or a nondeterministic choice.
+        /// </summary>
+        private void MovePriorityChangePointForward()
+        {
+            this.PriorityChangePoints.Remove(this.ScheduledSteps);
+            var newPriorityChangePoint = this.ScheduledSteps + 1;
+            while (this.PriorityChangePoints.Contains(newPriorityChangePoint))
+            {
+                newPriorityChangePoint++;
+            }
+
+            this.PriorityChangePoints.Add(newPriorityChangePoint);
+            Debug.WriteLine($"<PCTLog> Moving priority change to '{newPriorityChangePoint}'.");
+        }
+
+        /// <summary>
+        /// Returns the next boolean choice.
+        /// </summary>
+        public bool GetNextBooleanChoice(IAsyncOperation current, int maxValue, out bool next)
+        {
+            this.CaptureExecutionStep(current);
+
+            next = false;
+            if (this.RandomNumberGenerator.Next(maxValue) == 0)
+            {
+                next = true;
+            }
+
+            this.ScheduledSteps++;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the next integer choice.
+        /// </summary>
+        public bool GetNextIntegerChoice(IAsyncOperation current, int maxValue, out int next)
+        {
+            this.CaptureExecutionStep(current);
+            next = this.RandomNumberGenerator.Next(maxValue);
+            this.ScheduledSteps++;
+            return true;
+        }
+
+        /// <summary>
+        /// Notifies the scheduling strategy that a bug was
+        /// found in the current iteration.
+        /// </summary>
+        public void NotifyBugFound() => this.IsBugFound = true;
+
+        /// <summary>
+        /// Prepares for the next scheduling iteration. This is invoked
+        /// at the end of a scheduling iteration. It must return false
+        /// if the scheduling strategy should stop exploring.
+        /// </summary>
+        public bool PrepareForNextIteration()
+        {
+#pragma warning disable SA1005
+            if (this.IsBugFound || this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
+                this.Epochs == 160 || this.Epochs == 320 || this.Epochs == 640 || this.Epochs == 1280 || this.Epochs == 2560 ||
+                this.Epochs == 5120 || this.Epochs == 10000 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
+                this.Epochs == 81920 || this.Epochs == 163840)
+            {
+                Console.WriteLine($"==================> #{this.Epochs} Default States (size: {this.DefaultHashedStates.Count})");
+                Console.WriteLine($"==================> #{this.Epochs} Inbox-Only States (size: {this.InboxOnlyHashedStates.Count})");
+                Console.WriteLine($"==================> #{this.Epochs} Custom States (size: {this.CustomHashedStates.Count})");
+                Console.WriteLine($"==================> #{this.Epochs} Full States (size: {this.FullHashedStates.Count})");
+            }
+
+            this.IsBugFound = false;
+            this.Epochs++;
+#pragma warning restore SA1005
+
+            this.ScheduleLength = Math.Max(this.ScheduleLength, this.ScheduledSteps);
+            this.ScheduledSteps = 0;
+
+            this.PrioritizedOperations.Clear();
+            this.PriorityChangePoints.Clear();
+
+            var range = new List<int>();
+            for (int idx = 0; idx < this.ScheduleLength; idx++)
+            {
+                range.Add(idx);
+            }
+
+            foreach (int point in this.Shuffle(range).Take(this.MaxPrioritySwitchPoints))
+            {
+                this.PriorityChangePoints.Add(point);
+            }
+
+            return true;
+        }
+
+        /// <summary>
         /// Shuffles the specified list using the Fisher-Yates algorithm.
         /// </summary>
         private IList<int> Shuffle(IList<int> list)
@@ -331,21 +331,62 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         }
 
         /// <summary>
-        /// Moves the current priority change point forward. This is a useful
-        /// optimization when a priority change point is assigned in either a
-        /// sequential execution or a nondeterministic choice.
+        /// Resets the scheduling strategy. This is typically invoked by
+        /// parent strategies to reset child strategies.
         /// </summary>
-        private void MovePriorityChangePointForward()
+        public void Reset()
         {
-            this.PriorityChangePoints.Remove(this.ScheduledSteps);
-            var newPriorityChangePoint = this.ScheduledSteps + 1;
-            while (this.PriorityChangePoints.Contains(newPriorityChangePoint))
+            this.ScheduleLength = 0;
+            this.ScheduledSteps = 0;
+            this.PrioritizedOperations.Clear();
+            this.PriorityChangePoints.Clear();
+        }
+
+        /// <summary>
+        /// Returns the scheduled steps.
+        /// </summary>
+        public int GetScheduledSteps() => this.ScheduledSteps;
+
+        /// <summary>
+        /// True if the scheduling strategy has reached the max
+        /// scheduling steps for the given scheduling iteration.
+        /// </summary>
+        public bool HasReachedMaxSchedulingSteps()
+        {
+            if (this.MaxScheduledSteps == 0)
             {
-                newPriorityChangePoint++;
+                return false;
             }
 
-            this.PriorityChangePoints.Add(newPriorityChangePoint);
-            Debug.WriteLine($"<PCTLog> Moving priority change to '{newPriorityChangePoint}'.");
+            return this.ScheduledSteps >= this.MaxScheduledSteps;
+        }
+
+        /// <summary>
+        /// Checks if this is a fair scheduling strategy.
+        /// </summary>
+        public bool IsFair() => false;
+
+        /// <summary>
+        /// Returns a textual description of the scheduling strategy.
+        /// </summary>
+        public string GetDescription()
+        {
+            var text = $"PCT[priority change points '{this.MaxPrioritySwitchPoints}' [";
+
+            int idx = 0;
+            foreach (var points in this.PriorityChangePoints)
+            {
+                text += points;
+                if (idx < this.PriorityChangePoints.Count - 1)
+                {
+                    text += ", ";
+                }
+
+                idx++;
+            }
+
+            text += "], seed '" + this.RandomNumberGenerator.Seed + "']";
+            return text;
         }
     }
 }
