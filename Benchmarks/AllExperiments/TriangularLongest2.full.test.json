@@ -1,0 +1,12 @@
+{
+  "testName": "Test_Triangular_Longest_2",
+  "assemblyPath" : "Benchmarks.Threading.dll",
+  "outputPath" : "..\\..\\out\\TriangularLongest2\\full",
+  "numIterations" : 1000000,
+  "maxSteps" : 1000,
+  "abstractionLevel" : "full",
+  "timeout" : 0,
+  "strategies" : [
+    "QL"
+  ]
+}

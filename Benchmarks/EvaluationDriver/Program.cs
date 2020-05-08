@@ -66,74 +66,71 @@ namespace EvaluationDriver
             string schedulerType = SchedulerTypes[name];
 
             int numBuggyEpochs = 0;
+            int numBugs = 0;
             double bugFraction = 0.0;
-            double avgIterationsToBug = 0;
 
             var iterations = new List<int>();
 
-            for (int i = 0; i < configuration.NumEpochs; i++)
+            Console.WriteLine($"----- {schedulerName} ------");
+
+            string output;
+            using (Process p = new Process())
             {
-                Console.WriteLine($"----- {schedulerName} epoch {i} (Bugs/AvgIterationsToBug: " +
-                    $"{numBuggyEpochs}/{i}) ------");
+                p.StartInfo.UseShellExecute = false;
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.FileName = configuration.TesterPath;
+                p.StartInfo.Arguments = $" -test:{configuration.AssemblyPath} ";
+                p.StartInfo.Arguments += $"-method:{configuration.TestName} ";
+                p.StartInfo.Arguments += $"-o:{Path.Combine(configuration.OutputPath, schedulerName)} ";
+                p.StartInfo.Arguments += $"-i:{configuration.NumIterations} ";
+                p.StartInfo.Arguments += $"-max-steps:{configuration.MaxSteps}:{configuration.MaxSteps} ";
+                p.StartInfo.Arguments += $"-abstraction-level:{configuration.AbstractionLevel} ";
+                p.StartInfo.Arguments += $"-timeout:{configuration.Timeout} ";
+                p.StartInfo.Arguments += $"-sch:{schedulerType} ";
+                p.StartInfo.Arguments += $"-explore ";
 
-                string output;
-                using (Process p = new Process())
+                // Start the child process.
+                p.Start();
+
+                await Task.Yield();
+
+                // Read the output stream first and then wait.
+                output = p.StandardOutput.ReadToEnd();
+                p.WaitForExit();
+            }
+
+            if (output.Contains("Found 0 bugs"))
+            {
+                numBugs = 0;
+                Console.WriteLine($"... {schedulerName} found 0 bugs in {configuration.NumIterations} iterations");
+            }
+            else
+            {
+                numBuggyEpochs++;
+                string[] lines = output.Split('\n');
+                bool foundBuggyLine = false;
+
+                for (int j = 0; j < lines.Length && !foundBuggyLine; j++)
                 {
-                    p.StartInfo.UseShellExecute = false;
-                    p.StartInfo.RedirectStandardOutput = true;
-                    p.StartInfo.FileName = configuration.TesterPath;
-                    p.StartInfo.Arguments = $" -test:{configuration.AssemblyPath} ";
-                    p.StartInfo.Arguments += $"-method:{configuration.TestName} ";
-                    p.StartInfo.Arguments += $"-o:{Path.Combine(configuration.OutputPath, schedulerName)} ";
-                    p.StartInfo.Arguments += $"-i:{configuration.NumIterations} ";
-                    p.StartInfo.Arguments += $"-max-steps:{configuration.MaxSteps}:{configuration.MaxSteps} ";
-                    p.StartInfo.Arguments += $"-abstraction-level:{configuration.AbstractionLevel} ";
-                    p.StartInfo.Arguments += $"-sch:{schedulerType} ";
-
-                    // Start the child process.
-                    p.Start();
-
-                    await Task.Yield();
-
-                    // Read the output stream first and then wait.
-                    output = p.StandardOutput.ReadToEnd();
-                    p.WaitForExit();
-                }
-
-                if (output.Contains("Found 0 bugs"))
-                {
-                    continue;
-                }
-                else
-                {
-                    numBuggyEpochs++;
-                    string[] lines = output.Split('\n');
-                    for (int j = 0; j < lines.Length; j++)
+                    string[] words = lines[j].Trim().Split(' ');
+                    for (int k = 0; k < words.Length; k++)
                     {
-                        string[] words = lines[j].Trim().Split(' ');
-                        for (int k = 0; k < words.Length; k++)
+                        if (words[k] == "Found")
                         {
-                            if (words[k] == "Explored")
-                            {
-                                iterations.Add(Convert.ToInt32(words[k + 1]));
-                                Console.WriteLine($"... {schedulerName} found bug in iteration {Convert.ToInt32(words[k + 1])}");
-                                break;
-                            }
+                            numBugs = Convert.ToInt32(words[k + 1]);
+                            iterations.Add(numBugs);
+                            Console.WriteLine($"... {schedulerName} found {numBugs} bugs in {configuration.NumIterations} iterations");
+                            foundBuggyLine = true;
+                            break;
                         }
                     }
                 }
             }
+            
 
-            bugFraction = (double)numBuggyEpochs / (double)configuration.NumEpochs;
-            if (iterations.Count > 0)
-            {
-                avgIterationsToBug = iterations.Average();
-            }
-
-            double variance = iterations.Select(val => Math.Pow(val - avgIterationsToBug, 2)).Sum();
-            double iterStdDev = Math.Sqrt(variance / iterations.Count);
-
-            return new Result(schedulerName, numBuggyEpochs, bugFraction, avgIterationsToBug, iterStdDev);
+            bugFraction = 100 * ((double) numBugs / (double)configuration.NumIterations);
+            Console.WriteLine($"... {schedulerName} bug fraction: {bugFraction}");
+            return new Result(schedulerName, bugFraction);
         }
 
         static void WriteResults(Result[] results, Configuration configuration)
@@ -167,25 +164,12 @@ namespace EvaluationDriver
             internal string SchedulerName { get; set; }
 
             [JsonProperty]
-            internal int NumBuggyEpochs { get; set; }
-
-            [JsonProperty]
             internal double BugFraction { get; set; }
 
-            [JsonProperty]
-            internal double AvgIterationsToBug { get; set; }
-
-            [JsonProperty]
-            internal double IterStdDev { get; set; }
-
-            internal Result(string schedulerName, int numBuggyEpochs, double bugFraction,
-                double avgIterationsToBug, double iterStdDev)
+            internal Result(string schedulerName, double bugFraction)
             {
                 this.SchedulerName = schedulerName;
-                this.NumBuggyEpochs = numBuggyEpochs;
                 this.BugFraction = bugFraction;
-                this.AvgIterationsToBug = avgIterationsToBug;
-                this.IterStdDev = iterStdDev;
             }
         }
 
@@ -195,25 +179,25 @@ namespace EvaluationDriver
             internal readonly string TestName;
             internal readonly string AssemblyPath;
             internal readonly string OutputPath;
-            internal readonly int NumEpochs;
             internal readonly int NumIterations;
             internal readonly int MaxSteps;
             internal readonly string AbstractionLevel;
+            internal readonly int Timeout;
             internal readonly string[] Strategies;
 
             [JsonConstructor]
             internal Configuration(string testName, string assemblyPath, string outputPath, int numEpochs,
-                int numIterations, int maxSteps, string abstractionLevel, string[] strategies)
+                int numIterations, int maxSteps, string abstractionLevel, int timeout, string[] strategies)
             {
                 this.TesterPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                     "..\\..\\..\\bin\\net46\\PSharpTester.exe");
                 this.TestName = testName;
                 this.AssemblyPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), assemblyPath);
                 this.OutputPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), outputPath);
-                this.NumEpochs = numEpochs;
                 this.NumIterations = numIterations;
                 this.MaxSteps = maxSteps;
                 this.AbstractionLevel = abstractionLevel;
+                this.Timeout = timeout;
                 this.Strategies = strategies;
             }
 
@@ -223,11 +207,11 @@ namespace EvaluationDriver
                 Console.WriteLine($"Test name: {this.TestName}");
                 Console.WriteLine($"Assembly path: {this.AssemblyPath}");
                 Console.WriteLine($"Output path: {this.OutputPath}");
-
-                Console.WriteLine($"Num epochs: {this.NumEpochs}");
                 Console.WriteLine($"Num iterations: {this.NumIterations}");
                 Console.WriteLine($"Max steps: {this.MaxSteps}");
                 Console.WriteLine($"Abstraction level: {this.AbstractionLevel}");
+                Console.WriteLine($"Timeout: {this.Timeout}");
+                Console.WriteLine("Explore");
 
                 string strategies = string.Empty;
                 for (int idx = 0; idx < this.Strategies.Length; idx++)

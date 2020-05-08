@@ -1,0 +1,12 @@
+{
+  "testName": "Test_FailureDetector",
+  "assemblyPath" : "Benchmarks.Protocols.dll",
+  "outputPath" : "..\\..\\out\\FailureDetector\\full",
+  "numIterations" : 1000000,
+  "maxSteps" : 200,
+  "abstractionLevel" : "full",
+  "timeout" : 0,
+  "strategies" : [
+    "QL"
+  ]
+}
