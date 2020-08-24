@@ -69,6 +69,8 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// </summary>
         public static readonly int BucketSize = 20;
 
+        private readonly List<int> FailureIndex = new List<int>();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="RandomStrategy"/> class.
         /// It uses the specified random number generator.
@@ -96,6 +98,11 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
             {
                 next = null;
                 return false;
+            }
+
+            if (current.Type is AsyncOperationType.InjectFailure)
+            {
+                this.FailureIndex.Add(this.ScheduledSteps);
             }
 
             this.CaptureExecutionStep(current);
@@ -161,15 +168,41 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
                 this.GetType() != typeof(GreedyRandomStrategy))
             {
 #pragma warning disable SA1005
-                if (this.IsBugFound || this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
-                    this.Epochs == 160 || this.Epochs == 320 || this.Epochs == 640 || this.Epochs == 1280 || this.Epochs == 2560 ||
-                    this.Epochs == 5120 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
-                    this.Epochs == 81920 || this.Epochs == 163840)
+                //if (this.IsBugFound || this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
+                //    this.Epochs == 160 || this.Epochs == 320 || this.Epochs == 640 || this.Epochs == 1280 || this.Epochs == 2560 ||
+                //    this.Epochs == 5120 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
+                //    this.Epochs == 81920 || this.Epochs == 163840)
+                if (this.Epochs % 1000 == 0)
                 {
                     Console.WriteLine($"==================> #{this.Epochs} Default States (size: {this.DefaultHashedStates.Count})");
                     Console.WriteLine($"==================> #{this.Epochs} Inbox-Only States (size: {this.InboxOnlyHashedStates.Count})");
                     Console.WriteLine($"==================> #{this.Epochs} Custom States (size: {this.CustomHashedStates.Count})");
                     Console.WriteLine($"==================> #{this.Epochs} Full States (size: {this.FullHashedStates.Count})");
+
+                    using (var file = new System.IO.StreamWriter(@"C:\Users\pdeligia\workspace\papers\rl-testing-paper\oopsla20\experiments\data_random.txt", true))
+                    {
+                        foreach (var kvp in QLearningStrategy.EventFreq)
+                        {
+                            file.Write($"{kvp.Key}({kvp.Value}),");
+                        }
+
+                        file.WriteLine();
+                        file.WriteLine();
+                    }
+
+                    QLearningStrategy.EventFreq.Clear();
+                }
+
+                if (this.Epochs % 100 == 0)
+                {
+                    int avg = (int)this.FailureIndex.Average();
+
+                    using (var file = new System.IO.StreamWriter(@"C:\Users\pdeligia\workspace\papers\rl-testing-paper\oopsla20\experiments\fail_random.txt", true))
+                    {
+                        file.WriteLine(avg);
+                    }
+
+                    this.FailureIndex.Clear();
                 }
 
                 this.Epochs++;

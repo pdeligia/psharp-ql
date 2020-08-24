@@ -573,6 +573,13 @@ namespace Microsoft.PSharp.TestingServices.Runtime
                 }
             }
 
+            if (!QLearningStrategy.EventFreq.ContainsKey(e.GetType().Name))
+            {
+                QLearningStrategy.EventFreq.Add(e.GetType().Name, 0);
+            }
+
+            QLearningStrategy.EventFreq[e.GetType().Name]++;
+
             return machine.Enqueue(e, opGroupId, eventInfo);
         }
 

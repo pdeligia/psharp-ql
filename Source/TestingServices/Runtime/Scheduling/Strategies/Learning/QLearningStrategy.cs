@@ -115,6 +115,8 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// </summary>
         private int Epochs;
 
+        private readonly List<int> FailureIndex = new List<int>();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="QLearningStrategy"/> class.
         /// It uses the specified random number generator.
@@ -153,6 +155,11 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
                 // Fail fast if there are no enabled operations.
                 next = null;
                 return false;
+            }
+
+            if (current.Type is AsyncOperationType.InjectFailure)
+            {
+                this.FailureIndex.Add(this.ScheduledSteps);
             }
 
             int state = this.CaptureExecutionStep(current);
@@ -450,7 +457,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
             var node = this.ExecutionPath.First;
             while (node != null && node.Next != null)
             {
-                var (_, _, state) = node.Value;
+                var (_, type, state) = node.Value;
                 var (nextOp, nextType, nextState) = node.Next.Value;
 
                 // Compute the max Q value.
@@ -466,14 +473,17 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
                 // Compute the reward. Program states that are visited with higher frequency result into lesser rewards.
                 var freq = this.TransitionFrequencies[nextState];
                 double reward;
-                if (node.Next.Next is null && this.IsBugFound)
+                //if (node.Next.Next is null && this.IsBugFound)
+                //{
+                //    reward = this.BugStateReward;
+                //    Console.WriteLine($"==================> ({state}) Reward of {nextOp} ({nextState}) is {reward} [bug]");
+                //}
+                //else
                 {
-                    reward = this.BugStateReward;
-                    Console.WriteLine($"==================> ({state}) Reward of {nextOp} ({nextState}) is {reward} [bug]");
-                }
-                else
-                {
-                    reward = (nextType == AsyncOperationType.InjectFailure ? this.FailureInjectionReward : this.BasicActionReward) * freq;
+                    //reward = (nextType == AsyncOperationType.InjectFailure ? this.FailureInjectionReward : this.BasicActionReward) * freq;
+                    reward = (nextType == AsyncOperationType.InjectFailure ? -10 : this.BasicActionReward) * freq;
+                    //reward = nextType == AsyncOperationType.InjectFailure ? this.FailureInjectionReward : this.BasicActionReward;
+                    //reward = this.BasicActionReward * freq;
                     if (reward > 0)
                     {
                         // The reward has underflowed.
@@ -497,10 +507,11 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
                 idx++;
             }
 
-            if (this.IsBugFound || this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
-                this.Epochs == 160 || this.Epochs == 320 || this.Epochs == 640 || this.Epochs == 1280 || this.Epochs == 2560 ||
-                this.Epochs == 5120 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
-                this.Epochs == 81920 || this.Epochs == 163840)
+            //if (this.IsBugFound || this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
+            //    this.Epochs == 160 || this.Epochs == 320 || this.Epochs == 640 || this.Epochs == 1280 || this.Epochs == 2560 ||
+            //    this.Epochs == 5120 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
+            //    this.Epochs == 81920 || this.Epochs == 163840
+            if (this.Epochs % 100 == 0)
             {
                 Console.WriteLine($"==================> #{this.Epochs} ExecutionPath (size: {this.ExecutionPath.Count})");
                 Console.WriteLine($"==================> #{this.Epochs} UniqueStates (size: {this.UniqueStates.Count})");
@@ -508,8 +519,35 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
                 Console.WriteLine($"==================> #{this.Epochs} Inbox-Only States (size: {this.InboxOnlyHashedStates.Count})");
                 Console.WriteLine($"==================> #{this.Epochs} Custom States (size: {this.CustomHashedStates.Count})");
                 Console.WriteLine($"==================> #{this.Epochs} Full States (size: {this.FullHashedStates.Count})");
+
+                using (var file = new System.IO.StreamWriter(@"C:\Users\pdeligia\workspace\papers\rl-testing-paper\oopsla20\experiments\data_ql.txt", true))
+                {
+                    foreach (var kvp in EventFreq)
+                    {
+                        file.Write($"{kvp.Key}({kvp.Value}),");
+                    }
+
+                    file.WriteLine();
+                    file.WriteLine();
+                }
+
+                EventFreq.Clear();
             }
+
+            //if (this.Epochs % 100 == 0)
+            //{
+            //    int avg = (int)this.FailureIndex.Average();
+
+            //    using (var file = new System.IO.StreamWriter(@"C:\Users\pdeligia\workspace\papers\rl-testing-paper\oopsla20\experiments\fail_ql.txt", true))
+            //    {
+            //        file.WriteLine(avg);
+            //    }
+
+            //    this.FailureIndex.Clear();
+            //}
         }
+
+        internal static readonly SortedDictionary<string, int> EventFreq = new SortedDictionary<string, int>();
 
         /// <summary>
         /// Reset all data for exploration.
