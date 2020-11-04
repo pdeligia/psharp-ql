@@ -1,8 +1,8 @@
 {
-  "testName": "Test_Raftv1",
+  "testName": "Test_Raft",
   "assemblyPath" : "Benchmarks.Protocols.dll",
-  "outputPath" : "..\\..\\out\\Raftv1\\default",
-  "numEpochs" : 100,
+  "outputPath" : "..\\..\\out\\Raft\\default",
+  "numEpochs" : 3,
   "numIterations" : 10000,
   "maxSteps" : 1000,
   "abstractionLevel" : "default",
