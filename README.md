@@ -23,5 +23,5 @@ Next, build the benchmarks and evaluation driver, by running in `powershell`:
 ## How to run
 To execute an experiment, simply run the `EvaluationDriver` using the corresponding test configuration file, as in the following example:
 ```
-.\bin\net46\EvaluationDriver.exe .\Benchmarks\Protocols\FailureDetector.test.json
+.\bin\netcoreapp3.1\EvaluationDriver.exe .\Benchmarks\Protocols\FailureDetector.test.json
 ```

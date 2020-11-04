@@ -206,7 +206,7 @@ namespace EvaluationDriver
                 int numIterations, int maxSteps, string abstractionLevel, string[] strategies)
             {
                 this.TesterPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
-                    "..\\..\\..\\bin\\net46\\PSharpTester.exe");
+                    "..\\..\\..\\bin\\netcoreapp3.1\\PSharpTester.exe");
                 this.TestName = testName;
                 this.AssemblyPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), assemblyPath);
                 this.OutputPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), outputPath);
