@@ -123,7 +123,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
                 strategy = new TemperatureCheckingStrategy(configuration, this.Monitors, strategy);
             }
 
-            this.Scheduler = new OperationScheduler(this, strategy, scheduleTrace, this.Configuration);
+            this.Scheduler = new NativeScheduler(this, strategy, scheduleTrace, this.Configuration);
             this.TaskScheduler = new ControlledTaskScheduler(this, this.Scheduler.ControlledTaskMap);
             // this.SyncContext = new ControlledSynchronizationContext(this);
         }

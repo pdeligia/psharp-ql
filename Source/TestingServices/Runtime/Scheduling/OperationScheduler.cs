@@ -3,6 +3,7 @@
 // Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------------------------------------------
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
@@ -21,7 +22,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
     /// <summary>
     /// Provides methods for controlling the schedule of asynchronous operations.
     /// </summary>
-    internal sealed class OperationScheduler
+    internal class OperationScheduler : IDisposable
     {
         /// <summary>
         /// The configuration used by the scheduler.
@@ -605,6 +606,22 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Disposes scheduling resources.
+        /// </summary>
+        protected virtual void Dispose(bool disposing)
+        {
+        }
+
+        /// <summary>
+        /// Disposes scheduling resources.
+        /// </summary>
+        public void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
         }
     }
 }
