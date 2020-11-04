@@ -1,7 +1,7 @@
 {
-  "testName": "Test_Paxos",
+  "testName": "Test_Raft",
   "assemblyPath" : "Benchmarks.Protocols.dll",
-  "outputPath" : "..\\..\\out\\Paxos\\default",
+  "outputPath" : "..\\..\\out\\Raft\\default",
   "numEpochs" : 3,
   "numIterations" : 10000,
   "maxSteps" : 0,

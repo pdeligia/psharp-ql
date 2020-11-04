@@ -52,15 +52,10 @@ namespace Benchmarks.Protocols
                 this.NumOfIds = (int)Math.Pow(2, this.NumOfNodes);
 
                 this.ChordNodes = new List<MachineId>();
-                this.NodeIds = new List<int> { 0, 1, 3, 5, 7 };
+                this.NodeIds = new List<int> { 0, 1, 3 };
                 this.Keys = new List<int> {
                     1, 2, 4, 6, 9, 11,
-                    13, 22, 27, 29, 33,
-                    38, 45, 53, 67, 72,
-                    81, 95, 101, 102, 104,
-                    106, 109, 111, 113, 122,
-                    127, 129, 133, 138, 145,
-                    153, 167, 172, 181, 195
+                    13, 22, 27, 29, 33
                 };
 
                 for (int idx = 0; idx < this.NodeIds.Count; idx++)

@@ -23,15 +23,9 @@ namespace Benchmarks.Protocols
         }
 
         [Test]
-        public static void Test_Raftv1(IMachineRuntime runtime)
+        public static void Test_Raft(IMachineRuntime runtime)
         {
-            Raft.Execute(runtime, false);
-        }
-
-        [Test]
-        public static void Test_Raftv2(IMachineRuntime runtime)
-        {
-            Raft.Execute(runtime, true);
+            Raft.Execute(runtime);
         }
 
         [Test]
