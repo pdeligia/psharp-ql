@@ -1138,6 +1138,8 @@ namespace Benchmarks.Protocols
 
             MachineId Target;
 
+            int Count;
+
             [Start]
             [OnEventDoAction(typeof(ConfigureEvent), nameof(Configure))]
             [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
@@ -1157,6 +1159,7 @@ namespace Benchmarks.Protocols
 
             void ActiveOnEntry()
             {
+                this.Count = 0;
                 this.Send(this.Id, new TickEvent());
             }
 
@@ -1169,11 +1172,17 @@ namespace Benchmarks.Protocols
                 }
 
                 this.Send(this.Id, new TickEvent());
-                //this.Raise(new CancelTimerEvent());
+
+                if (this.Count is 10)
+                {
+                    this.Raise(new CancelTimerEvent());
+                }
+
+                this.Count++;
             }
 
-            [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
-            [IgnoreEvents(typeof(CancelTimerEvent), typeof(TickEvent))]
+            // [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
+            [IgnoreEvents(typeof(StartTimerEvent), typeof(CancelTimerEvent), typeof(TickEvent))]
             class Inactive : MachineState { }
         }
 
