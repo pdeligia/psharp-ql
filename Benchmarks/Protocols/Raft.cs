@@ -942,8 +942,8 @@ namespace Benchmarks.Protocols
 
             void ShuttingDown()
             {
-                this.Send(this.ElectionTimer, new Halt());
-                this.Send(this.PeriodicTimer, new Halt());
+                //this.Send(this.ElectionTimer, new Halt());
+                //this.Send(this.PeriodicTimer, new Halt());
 
                 this.Raise(new Halt());
             }
