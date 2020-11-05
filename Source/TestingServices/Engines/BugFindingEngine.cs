@@ -324,7 +324,7 @@ namespace Microsoft.PSharp.TestingServices
                 runtime.RunTestHarness(this.TestMethod, this.TestName);
 
                 // Wait for the test to terminate.
-                runtime.WaitAsync().Wait(5000);
+                runtime.WaitAsync().Wait();
 
                 // Invokes user-provided cleanup for this iteration.
                 if (this.TestIterationDisposeMethod != null)

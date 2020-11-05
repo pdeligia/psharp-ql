@@ -8,6 +8,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 using Microsoft.PSharp.IO;
@@ -17,14 +18,20 @@ using Microsoft.PSharp.TestingServices.Scheduling.Strategies;
 using Microsoft.PSharp.TestingServices.Tracing.Schedule;
 using Microsoft.PSharp.Utilities;
 
+#pragma warning disable SA1300 // Element must begin with upper-case letter
 #pragma warning disable SA1005 // Single line comments must begin with single space
 namespace Microsoft.PSharp.TestingServices.Scheduling
 {
     /// <summary>
     /// Provides methods for controlling the schedule of asynchronous operations.
     /// </summary>
-    internal abstract class OperationScheduler : IDisposable
+    internal sealed class OperationScheduler : IDisposable
     {
+        /// <summary>
+        /// The native scheduler.
+        /// </summary>
+        private IntPtr SchedulerPtr;
+
         /// <summary>
         /// The configuration used by the scheduler.
         /// </summary>
@@ -43,7 +50,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// Map from unique ids to asynchronous operations.
         /// </summary>
-        protected readonly Dictionary<ulong, MachineOperation> OperationMap;
+        private readonly Dictionary<ulong, MachineOperation> OperationMap;
 
         /// <summary>
         /// Map from ids of tasks that are controlled by the runtime to operations.
@@ -58,17 +65,17 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// The scheduler completion source.
         /// </summary>
-        protected readonly TaskCompletionSource<bool> CompletionSource;
+        private readonly TaskCompletionSource<bool> CompletionSource;
 
         /// <summary>
         /// Checks if the scheduler is running.
         /// </summary>
-        protected bool IsSchedulerRunning;
+        private bool IsSchedulerRunning;
 
         /// <summary>
         /// The currently scheduled asynchronous operation.
         /// </summary>
-        internal abstract MachineOperation ScheduledOperation { get; }
+        internal MachineOperation ScheduledOperation { get; private set; }
 
         /// <summary>
         /// Number of scheduled steps.
@@ -91,31 +98,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         internal string BugReport { get; private set; }
 
         /// <summary>
-        /// The set of default hashed states.
-        /// </summary>
-        private readonly HashSet<int> DefaultHashedStates;
-
-        /// <summary>
-        /// The set of inbox-only hashed states.
-        /// </summary>
-        private readonly HashSet<int> InboxOnlyHashedStates;
-
-        /// <summary>
-        /// The set of custom hashed states.
-        /// </summary>
-        private readonly HashSet<int> CustomHashedStates;
-
-        /// <summary>
-        /// The set of full hashed states.
-        /// </summary>
-        private readonly HashSet<int> FullHashedStates;
-
-        /// <summary>
         /// Initializes a new instance of the <see cref="OperationScheduler"/> class.
         /// </summary>
         internal OperationScheduler(SystematicTestingRuntime runtime, ISchedulingStrategy strategy,
             ScheduleTrace trace, Configuration configuration)
         {
+            this.SchedulerPtr = create_scheduler();
             this.Configuration = configuration;
             this.Runtime = runtime;
             this.Strategy = strategy;
@@ -127,31 +115,98 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.BugFound = false;
             this.HasFullyExploredSchedule = false;
             this.ScheduledSteps = 0;
-            this.DefaultHashedStates = new HashSet<int>();
-            this.InboxOnlyHashedStates = new HashSet<int>();
-            this.CustomHashedStates = new HashSet<int>();
-            this.FullHashedStates = new HashSet<int>();
         }
 
-        internal abstract int CreateOperation(MachineOperation op);
+        [DllImport("coyote.dll")]
+        private static extern IntPtr create_scheduler();
 
-        internal abstract int StartOperation(MachineOperation op);
+        [DllImport("coyote.dll")]
+        private static extern IntPtr create_scheduler_with_random_strategy(ulong seed);
 
-        internal abstract int WaitOperationStart(MachineOperation op);
+        [DllImport("coyote.dll")]
+        private static extern int attach(IntPtr scheduler);
 
-        internal abstract int CompleteOperation(MachineOperation op);
+        [DllImport("coyote.dll")]
+        private static extern int detach(IntPtr scheduler);
 
-        internal abstract int CreateResource(ulong id);
+        [DllImport("coyote.dll")]
+        private static extern int create_operation(IntPtr scheduler, ulong operation_id);
 
-        internal abstract int AcquireResource(ulong id);
+        [DllImport("coyote.dll")]
+        private static extern int start_operation(IntPtr scheduler, ulong operation_id);
 
-        internal abstract int ReleaseResource(ulong id);
+        [DllImport("coyote.dll")]
+        private static extern int join_operation(IntPtr scheduler, ulong operation_id);
 
-        internal abstract int ScheduleNextOperation();
+        [DllImport("coyote.dll")]
+        private static extern int complete_operation(IntPtr scheduler, ulong operation_id);
 
-        internal abstract bool GetNextBoolean(ulong maxValue);
+        [DllImport("coyote.dll")]
+        private static extern int create_resource(IntPtr scheduler, ulong resource_id);
 
-        internal abstract int GetNextInteger(ulong maxValue);
+        [DllImport("coyote.dll")]
+        private static extern int wait_resource(IntPtr scheduler, ulong resource_id);
+
+        [DllImport("coyote.dll")]
+        private static extern int signal_resource(IntPtr scheduler, ulong resource_id);
+
+        [DllImport("coyote.dll")]
+        private static extern int delete_resource(IntPtr scheduler, ulong resource_id);
+
+        [DllImport("coyote.dll")]
+        private static extern int schedule_next(IntPtr scheduler);
+
+        [DllImport("coyote.dll")]
+        private static extern bool next_boolean(IntPtr scheduler);
+
+        [DllImport("coyote.dll")]
+        private static extern int next_integer(IntPtr scheduler);
+
+        [DllImport("coyote.dll")]
+        private static extern int next_integer(IntPtr scheduler, ulong max_value);
+
+        [DllImport("coyote.dll")]
+        private static extern int scheduled_operation_id(IntPtr scheduler);
+
+        [DllImport("coyote.dll")]
+        private static extern int random_seed(IntPtr scheduler);
+
+        [DllImport("coyote.dll")]
+        private static extern int dispose_scheduler(IntPtr scheduler);
+
+        internal int CreateOperation(MachineOperation op) => create_operation(this.SchedulerPtr, op.Machine.Id.Value);
+
+        internal int StartOperation(MachineOperation op) => start_operation(this.SchedulerPtr, op.Machine.Id.Value);
+
+        internal int WaitOperationStart(MachineOperation op) => join_operation(this.SchedulerPtr, op.Machine.Id.Value);
+
+        internal int CompleteOperation(MachineOperation op) => complete_operation(this.SchedulerPtr, op.Machine.Id.Value);
+
+        internal int CreateResource(ulong id) => create_operation(this.SchedulerPtr, id);
+
+        internal int AcquireResource(ulong id) => wait_resource(this.SchedulerPtr, id);
+
+        internal int ReleaseResource(ulong id) => signal_resource(this.SchedulerPtr, id);
+
+        internal int ScheduleNextOperation() => schedule_next(this.SchedulerPtr);
+
+        internal void Attach() => _ = attach(this.SchedulerPtr);
+
+        internal void Detach()
+        {
+            _ = detach(this.SchedulerPtr);
+
+            if (!this.CompletionSource.Task.IsCompleted)
+            {
+                lock (this.CompletionSource)
+                {
+                    if (!this.CompletionSource.Task.IsCompleted)
+                    {
+                        this.CompletionSource.SetResult(true);
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Schedules the next asynchronous operation.
@@ -216,6 +271,9 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
             int result = this.ScheduleNextOperation();
             Debug.WriteLine($"<Native> schedule next error code is {result}");
+
+            var id = (ulong)scheduled_operation_id(this.SchedulerPtr);
+            this.ScheduledOperation = this.OperationMap[id];
 
             if (!this.IsSchedulerRunning)
             {
@@ -297,7 +355,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
-            //bool choice = this.GetNextBoolean((ulong)maxValue);
+            //bool choice = this.next_boolean(this.SchedulerPtr)
             if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
@@ -335,7 +393,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
-            //int choice = this.GetNextInteger((ulong)maxValue);
+            //int choice = this.next_integer(this.SchedulerPtr, maxValue);
             if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
@@ -357,10 +415,10 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.ControlledTaskMap.TryAdd(task.Id, op);
             if (!this.OperationMap.ContainsKey(op.SourceId))
             {
-                //if (this.OperationMap.Count == 0)
-                //{
-                //    this.ScheduledOperation = op;
-                //}
+                if (this.OperationMap.Count == 0)
+                {
+                    this.ScheduledOperation = op;
+                }
 
                 this.OperationMap.Add(op.SourceId, op);
             }
@@ -390,12 +448,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
             if (killTasks)
             {
-                this.Stop();
+                //this.Stop();
             }
 
             if (cancelExecution)
             {
-                throw new ExecutionCanceledException();
+                //throw new ExecutionCanceledException();
             }
         }
 
@@ -599,10 +657,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// </summary>
         internal Task WaitAsync() => this.CompletionSource.Task;
 
-        internal abstract void Attach();
-
-        internal abstract void Detach();
-
         /// <summary>
         /// Stops the scheduler.
         /// </summary>
@@ -654,11 +708,13 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             }
         }
 
-        /// <summary>
-        /// Disposes scheduling resources.
-        /// </summary>
-        protected virtual void Dispose(bool disposing)
+        protected void Dispose(bool disposing)
         {
+            if (disposing && this.SchedulerPtr != IntPtr.Zero)
+            {
+                _ = dispose_scheduler(this.SchedulerPtr);
+                this.SchedulerPtr = IntPtr.Zero;
+            }
         }
 
         /// <summary>
@@ -669,5 +725,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.Dispose(true);
             GC.SuppressFinalize(this);
         }
+
+        ~OperationScheduler() => this.Dispose(false);
     }
 }
