@@ -297,7 +297,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
-            // int choice = this.GetNextBoolean();
+            //bool choice = this.GetNextBoolean((ulong)maxValue);
             if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
@@ -335,7 +335,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
-            // int choice = this.GetNextInteger((ulong)maxValue);
+            //int choice = this.GetNextInteger((ulong)maxValue);
             if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
