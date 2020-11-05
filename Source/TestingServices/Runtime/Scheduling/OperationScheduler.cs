@@ -58,12 +58,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// The scheduler completion source.
         /// </summary>
-        private readonly TaskCompletionSource<bool> CompletionSource;
+        protected readonly TaskCompletionSource<bool> CompletionSource;
 
         /// <summary>
         /// Checks if the scheduler is running.
         /// </summary>
-        private bool IsSchedulerRunning;
+        protected bool IsSchedulerRunning;
 
         /// <summary>
         /// The currently scheduled asynchronous operation.
@@ -73,7 +73,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// Number of scheduled steps.
         /// </summary>
-        internal int ScheduledSteps => this.Strategy.GetScheduledSteps();
+        internal int ScheduledSteps { get; private set; }
 
         /// <summary>
         /// Checks if the schedule has been fully explored.
@@ -91,6 +91,26 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         internal string BugReport { get; private set; }
 
         /// <summary>
+        /// The set of default hashed states.
+        /// </summary>
+        private readonly HashSet<int> DefaultHashedStates;
+
+        /// <summary>
+        /// The set of inbox-only hashed states.
+        /// </summary>
+        private readonly HashSet<int> InboxOnlyHashedStates;
+
+        /// <summary>
+        /// The set of custom hashed states.
+        /// </summary>
+        private readonly HashSet<int> CustomHashedStates;
+
+        /// <summary>
+        /// The set of full hashed states.
+        /// </summary>
+        private readonly HashSet<int> FullHashedStates;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="OperationScheduler"/> class.
         /// </summary>
         internal OperationScheduler(SystematicTestingRuntime runtime, ISchedulingStrategy strategy,
@@ -106,6 +126,11 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.IsSchedulerRunning = true;
             this.BugFound = false;
             this.HasFullyExploredSchedule = false;
+            this.ScheduledSteps = 0;
+            this.DefaultHashedStates = new HashSet<int>();
+            this.InboxOnlyHashedStates = new HashSet<int>();
+            this.CustomHashedStates = new HashSet<int>();
+            this.FullHashedStates = new HashSet<int>();
         }
 
         internal abstract int CreateOperation(MachineOperation op);
@@ -153,14 +178,23 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 // Checks if concurrency not controlled by the runtime was used.
                 this.CheckNoExternalConcurrencyUsed();
 
-                // Checks if the scheduling steps bound has been reached.
-                this.CheckIfSchedulingStepsBoundIsReached();
-
                 MachineOperation current = this.ScheduledOperation;
                 current.SetNextOperation(type, target, targetId);
 
+                // Update the current execution state.
+                current.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
+                current.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
+                current.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
+                current.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
+
+                ((this.Strategy as TemperatureCheckingStrategy).SchedulingStrategy as RandomStrategy).
+                    CaptureExecutionStep(current);
+
                 this.ControlledTaskMap.GetOrAdd(Task.CurrentId.Value, current);
             }
+
+            // Checks if the scheduling steps bound has been reached.
+            this.CheckIfSchedulingStepsBoundIsReached();
 
             // Try enable any operation that is currently waiting, but has
             // its dependencies already satisfied.
@@ -178,11 +212,17 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
                 this.HasFullyExploredSchedule = true;
                 this.Stop();
-                throw new ExecutionCanceledException();
+                return;
+                //throw new ExecutionCanceledException();
             }
 
             int result = this.ScheduleNextOperation();
             Debug.WriteLine($"<Native> schedule next error code is {result}");
+
+            if (!this.IsSchedulerRunning)
+            {
+                throw new ExecutionCanceledException();
+            }
 
             // Get and order the operations by their id.
             //var ops = this.OperationMap.Values.OrderBy(op => op.SourceId).Select(op => op as IAsyncOperation).ToList();
@@ -252,6 +292,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             // Checks if the scheduling steps bound has been reached.
             this.CheckIfSchedulingStepsBoundIsReached();
 
+            // Update the current execution state.
+            this.ScheduledOperation.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
+            this.ScheduledOperation.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
+            this.ScheduledOperation.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
+            this.ScheduledOperation.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
+
             if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
@@ -282,6 +328,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             // Checks if the scheduling steps bound has been reached.
             this.CheckIfSchedulingStepsBoundIsReached();
 
+            // Update the current execution state.
+            this.ScheduledOperation.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
+            this.ScheduledOperation.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
+            this.ScheduledOperation.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
+            this.ScheduledOperation.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
+
             if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
@@ -292,28 +344,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.ScheduleTrace.AddNondeterministicIntegerChoice(choice);
 
             return choice;
-        }
-
-        /// <summary>
-        /// Waits for the specified asynchronous operation to start.
-        /// </summary>
-        internal void WaitForOperationToStart(MachineOperation op)
-        {
-            lock (op)
-            {
-                if (this.OperationMap.Count == 1)
-                {
-                    op.IsActive = true;
-                    System.Threading.Monitor.PulseAll(op);
-                }
-                else
-                {
-                    while (!op.IsHandlerRunning)
-                    {
-                        System.Threading.Monitor.Wait(op);
-                    }
-                }
-            }
         }
 
         /// <summary>
@@ -540,7 +570,8 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// </summary>
         private void CheckIfSchedulingStepsBoundIsReached()
         {
-            if (this.Strategy.HasReachedMaxSchedulingSteps())
+            if (this.Configuration.MaxFairSchedulingSteps > 0 &&
+                this.Configuration.MaxFairSchedulingSteps == this.ScheduledSteps)
             {
                 int bound = this.Strategy.IsFair() ? this.Configuration.MaxFairSchedulingSteps :
                     this.Configuration.MaxUnfairSchedulingSteps;
@@ -557,6 +588,8 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                     throw new ExecutionCanceledException();
                 }
             }
+
+            this.ScheduledSteps++;
         }
 
         /// <summary>
@@ -564,13 +597,22 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// </summary>
         internal Task WaitAsync() => this.CompletionSource.Task;
 
+        internal abstract void Attach();
+
+        internal abstract void Detach();
+
         /// <summary>
         /// Stops the scheduler.
         /// </summary>
-        protected virtual void Stop()
+        private void Stop()
         {
+            Debug.WriteLine("STOP");
             this.IsSchedulerRunning = false;
             this.KillRemainingOperations();
+            //this.Detach();
+
+            //this.CompleteOperation(this.ScheduledOperation);
+            //throw new ExecutionCanceledException();
 
             // Check if the completion source is completed. If not synchronize on
             // it (as it can only be set once) and set its result.
@@ -584,6 +626,9 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                     }
                 }
             }
+
+            this.CompleteOperation(this.ScheduledOperation);
+            throw new ExecutionCanceledException();
         }
 
         /// <summary>
@@ -595,14 +640,15 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             {
                 op.IsActive = true;
                 op.Status = AsyncOperationStatus.Completed;
+                //this.CompleteOperation(op);
 
-                if (op.IsHandlerRunning)
-                {
-                    lock (op)
-                    {
-                        System.Threading.Monitor.PulseAll(op);
-                    }
-                }
+                //if (op.IsHandlerRunning)
+                //{
+                //    lock (op)
+                //    {
+                //        System.Threading.Monitor.PulseAll(op);
+                //    }
+                //}
             }
         }
 

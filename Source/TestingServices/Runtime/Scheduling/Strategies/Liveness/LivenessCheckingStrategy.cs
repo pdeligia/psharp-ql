@@ -28,7 +28,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// <summary>
         /// Strategy used for scheduling decisions.
         /// </summary>
-        protected ISchedulingStrategy SchedulingStrategy;
+        internal ISchedulingStrategy SchedulingStrategy;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="LivenessCheckingStrategy"/> class.

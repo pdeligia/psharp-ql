@@ -48,7 +48,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             : base(runtime, strategy, trace, configuration)
         {
             this.SchedulerPtr = create_scheduler_with_random_strategy(1);
-            _ = attach(this.SchedulerPtr);
         }
 
         [DllImport("coyote.dll")]
@@ -125,10 +124,22 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
         internal override int GetNextInteger(ulong maxValue) => next_integer(this.SchedulerPtr, maxValue);
 
-        protected override void Stop()
+        internal override void Attach() => _ = attach(this.SchedulerPtr);
+
+        internal override void Detach()
         {
             _ = detach(this.SchedulerPtr);
-            base.Stop();
+
+            if (!this.CompletionSource.Task.IsCompleted)
+            {
+                lock (this.CompletionSource)
+                {
+                    if (!this.CompletionSource.Task.IsCompleted)
+                    {
+                        this.CompletionSource.SetResult(true);
+                    }
+                }
+            }
         }
 
         protected override void Dispose(bool disposing)
