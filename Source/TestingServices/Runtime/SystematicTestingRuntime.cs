@@ -273,35 +273,18 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         /// </summary>
         internal void RunTestHarness(Delegate test, string testName)
         {
-            try
-            {
-                this.Assert(Task.CurrentId != null, "The test harness machine must execute inside a task.");
-                this.Assert(test != null, "The test harness machine cannot execute a null test.");
+            this.Assert(Task.CurrentId != null, "The test harness machine must execute inside a task.");
+            this.Assert(test != null, "The test harness machine cannot execute a null test.");
 
-                testName = string.IsNullOrEmpty(testName) ? "anonymous" : testName;
-                this.Logger.WriteLine($"<TestLog> Running test '{testName}'.");
+            testName = string.IsNullOrEmpty(testName) ? "anonymous" : testName;
+            this.Logger.WriteLine($"<TestLog> Running test '{testName}'.");
 
-                var machine = new TestEntryPointWorkMachine(this, test);
-                this.DispatchWork(machine, null);
-            }
-            catch (Exception ex)
-            {
-                Exception innerException = ex;
-                while (innerException is TargetInvocationException)
-                {
-                    innerException = innerException.InnerException;
-                }
+            this.Scheduler.Attach();
 
-                if (innerException is AggregateException)
-                {
-                    innerException = innerException.InnerException;
-                }
+            var machine = new TestEntryPointWorkMachine(this, test);
+            this.DispatchWork(machine, null);
 
-                if (!(innerException is ExecutionCanceledException))
-                {
-                    throw;
-                }
-            }
+            this.Scheduler.Detach();
         }
 
         /// <summary>
@@ -610,7 +593,10 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         private void RunMachineEventHandler(Machine machine, Event initialEvent, bool isFresh, Machine syncCaller, EventInfo enablingEvent)
         {
             MachineOperation op = this.GetAsynchronousOperation(machine.Id.Value);
-            this.Scheduler.CreateOperation(op);
+            if (!isFresh)
+            {
+                this.Scheduler.CreateOperation(op);
+            }
 
             Task task = new Task(async () =>
             {
@@ -1054,7 +1040,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
             // this.Scheduler.WaitForOperationToStart(op);
             this.Scheduler.WaitOperationStart(op);
 
-            this.Scheduler.ScheduleNextOperation(AsyncOperationType.Yield, AsyncOperationTarget.Task, machine.Id.Value);
+            // this.Scheduler.ScheduleNextOperation(AsyncOperationType.Yield, AsyncOperationTarget.Task, machine.Id.Value);
         }
 
         /// <summary>
