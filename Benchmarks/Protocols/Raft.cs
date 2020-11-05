@@ -5,11 +5,8 @@ namespace Benchmarks.Protocols
 {
     internal class Raft
     {
-        static private bool WithDataNondet;
-
-        public static void Execute(IMachineRuntime runtime, bool withDataNondet)
+        public static void Execute(IMachineRuntime runtime)
         {
-            WithDataNondet = withDataNondet;
             runtime.RegisterMonitor(typeof(SafetyMonitor));
             runtime.CreateMachine(typeof(ClusterManager), "ClusterManager");
         }
@@ -61,6 +58,8 @@ namespace Benchmarks.Protocols
             MachineId Leader;
             int LeaderTerm;
 
+            int Counter;
+
             MachineId Client;
 
             [Start]
@@ -72,6 +71,7 @@ namespace Benchmarks.Protocols
             {
                 this.NumberOfServers = 5;
                 this.LeaderTerm = 0;
+                this.Counter = 0;
 
                 this.Servers = new MachineId[this.NumberOfServers];
 
@@ -132,7 +132,12 @@ namespace Benchmarks.Protocols
 
             void RedirectClientRequest()
             {
-                this.Send(this.Id, (this.ReceivedEvent as RedirectRequest).Request);
+                if (this.Counter < 10)
+                {
+                    this.Send(this.Id, (this.ReceivedEvent as RedirectRequest).Request);
+                }
+
+                this.Counter++;
             }
 
             void RefreshLeader()
@@ -1080,20 +1085,8 @@ namespace Benchmarks.Protocols
 
             void Tick()
             {
-                int threshold;
-                if (Raft.WithDataNondet)
-                {
-                    threshold = 6;
-                    if (this.Random())
-                    {
-                        this.Counter++;
-                    }
-                }
-                else
-                {
-                    threshold = 4;
-                    this.Counter++;
-                }
+                int threshold = 2;
+                this.Counter++;
 
                 if (this.Counter == threshold)
                 {
@@ -1112,8 +1105,8 @@ namespace Benchmarks.Protocols
                 }
             }
 
-            [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
-            [IgnoreEvents(typeof(CancelTimerEvent), typeof(TickEvent))]
+            // [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
+            [IgnoreEvents(typeof(StartTimerEvent), typeof(CancelTimerEvent), typeof(TickEvent))]
             class Inactive : MachineState { }
         }
 

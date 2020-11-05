@@ -25,7 +25,7 @@ namespace Benchmarks.Protocols
         [Test]
         public static void Test_Raft(IMachineRuntime runtime)
         {
-            Raft.Execute(runtime, false);
+            Raft.Execute(runtime);
         }
 
         [Test]
