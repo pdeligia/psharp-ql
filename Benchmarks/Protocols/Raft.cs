@@ -5,11 +5,8 @@ namespace Benchmarks.Protocols
 {
     internal class Raft
     {
-        static private bool WithDataNondet;
-
-        public static void Execute(IMachineRuntime runtime, bool withDataNondet)
+        public static void Execute(IMachineRuntime runtime)
         {
-            WithDataNondet = withDataNondet;
             runtime.RegisterMonitor(typeof(SafetyMonitor));
             runtime.CreateMachine(typeof(ClusterManager), "ClusterManager");
         }
@@ -1080,20 +1077,8 @@ namespace Benchmarks.Protocols
 
             void Tick()
             {
-                int threshold;
-                if (Raft.WithDataNondet)
-                {
-                    threshold = 6;
-                    if (this.Random())
-                    {
-                        this.Counter++;
-                    }
-                }
-                else
-                {
-                    threshold = 4;
-                    this.Counter++;
-                }
+                int threshold = 2;
+                this.Counter++;
 
                 if (this.Counter == threshold)
                 {
@@ -1181,8 +1166,8 @@ namespace Benchmarks.Protocols
                 this.Count++;
             }
 
-            [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
-            [IgnoreEvents(typeof(CancelTimerEvent), typeof(TickEvent))]
+            // [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
+            [IgnoreEvents(typeof(StartTimerEvent), typeof(CancelTimerEvent), typeof(TickEvent))]
             class Inactive : MachineState { }
         }
 
