@@ -151,7 +151,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         private static extern int schedule_next(IntPtr scheduler);
 
         [DllImport("coyote.dll")]
-        private static extern bool next_boolean(IntPtr scheduler);
+        private static extern int next_boolean(IntPtr scheduler);
 
         [DllImport("coyote.dll")]
         private static extern int next_integer(IntPtr scheduler);
@@ -246,6 +246,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
             var id = (ulong)scheduled_operation_id(this.SchedulerPtr);
             this.ScheduledOperation = this.OperationMap[id];
+            Console.WriteLine($"next_operation {id}");
 
             if (!this.IsSchedulerRunning)
             {
@@ -271,13 +272,15 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
-            //bool choice = this.next_boolean(this.SchedulerPtr)
-            if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
-            {
-                Debug.WriteLine("<ScheduleDebug> Schedule explored.");
-                this.Stop();
-                throw new ExecutionCanceledException();
-            }
+            maxValue = 2;
+            bool choice = Convert.ToBoolean(next_boolean(this.SchedulerPtr));
+            Console.WriteLine($"next_boolean {choice}");
+            //if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
+            //{
+            //    Debug.WriteLine("<ScheduleDebug> Schedule explored.");
+            //    this.Stop();
+            //    throw new ExecutionCanceledException();
+            //}
 
             if (uniqueId is null)
             {
@@ -309,13 +312,14 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
-            //int choice = this.next_integer(this.SchedulerPtr, maxValue);
-            if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
-            {
-                Debug.WriteLine("<ScheduleDebug> Schedule explored.");
-                this.Stop();
-                throw new ExecutionCanceledException();
-            }
+            int choice = next_integer(this.SchedulerPtr, (ulong)maxValue);
+            Console.WriteLine($"next_integer {choice}");
+            //if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
+            //{
+            //    Debug.WriteLine("<ScheduleDebug> Schedule explored.");
+            //    this.Stop();
+            //    throw new ExecutionCanceledException();
+            //}
 
             this.ScheduleTrace.AddNondeterministicIntegerChoice(choice);
 
