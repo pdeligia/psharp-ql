@@ -58,6 +58,8 @@ namespace Benchmarks.Protocols
             MachineId Leader;
             int LeaderTerm;
 
+            int Counter;
+
             MachineId Client;
 
             [Start]
@@ -69,6 +71,7 @@ namespace Benchmarks.Protocols
             {
                 this.NumberOfServers = 5;
                 this.LeaderTerm = 0;
+                this.Counter = 0;
 
                 this.Servers = new MachineId[this.NumberOfServers];
 
@@ -129,7 +132,12 @@ namespace Benchmarks.Protocols
 
             void RedirectClientRequest()
             {
-                this.Send(this.Id, (this.ReceivedEvent as RedirectRequest).Request);
+                if (this.Counter < 10)
+                {
+                    this.Send(this.Id, (this.ReceivedEvent as RedirectRequest).Request);
+                }
+
+                this.Counter++;
             }
 
             void RefreshLeader()
@@ -934,8 +942,8 @@ namespace Benchmarks.Protocols
 
             void ShuttingDown()
             {
-                this.Send(this.ElectionTimer, new Halt());
-                this.Send(this.PeriodicTimer, new Halt());
+                //this.Send(this.ElectionTimer, new Halt());
+                //this.Send(this.PeriodicTimer, new Halt());
 
                 this.Raise(new Halt());
             }
@@ -1097,8 +1105,8 @@ namespace Benchmarks.Protocols
                 }
             }
 
-            [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
-            [IgnoreEvents(typeof(CancelTimerEvent), typeof(TickEvent))]
+            // [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
+            [IgnoreEvents(typeof(StartTimerEvent), typeof(CancelTimerEvent), typeof(TickEvent))]
             class Inactive : MachineState { }
         }
 
