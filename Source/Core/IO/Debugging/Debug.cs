@@ -16,7 +16,7 @@ namespace Microsoft.PSharp.IO
         /// <summary>
         /// Checks if debugging is enabled.
         /// </summary>
-        internal static bool IsEnabled = false;
+        internal static bool IsEnabled = true;
 
         /// <summary>
         /// Writes the debugging information, followed by the current line terminator,

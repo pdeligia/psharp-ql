@@ -4,23 +4,8 @@
 // ------------------------------------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.PSharp.IO;
-using Microsoft.PSharp.Runtime;
 using Microsoft.PSharp.TestingServices;
-using Microsoft.PSharp.TestingServices.Runtime;
-using Microsoft.PSharp.TestingServices.Tests;
-using Microsoft.PSharp.TestingServices.Threading;
-using Microsoft.PSharp.Tests.Common;
-using Microsoft.PSharp.Threading;
-using Microsoft.PSharp.Timers;
-using Xunit.Abstractions;
-
-using BaseBugFindingTest = Microsoft.PSharp.TestingServices.Tests.BaseTest;
-using BaseCoreTest = Microsoft.PSharp.Core.Tests.BaseTest;
 
 namespace Microsoft.PSharp.Tests.Launcher
 {
@@ -132,35 +117,15 @@ namespace Microsoft.PSharp.Tests.Launcher
         }
     }
 
-    public sealed class CoreTest : BaseCoreTest
-    {
-        public CoreTest(ITestOutputHelper output)
-            : base(output)
-        {
-        }
-
-        public async Task Run()
-        {
-            await Task.CompletedTask;
-        }
-    }
-
-    public static class Assert
-    {
-        public static void True(bool predicate, string message = null)
-        {
-            Specification.Assert(predicate, message ?? string.Empty);
-        }
-
-        public static void Equal<T>(T expected, T actual)
-            where T : IEquatable<T>
-        {
-            True(expected.Equals(actual), $"actual '{actual}' != expected '{expected}'");
-        }
-    }
-
     public static class Program
     {
+        [System.Runtime.InteropServices.DllImport("coyote.dll")]
+#pragma warning disable SA1300 // Element must begin with upper-case letter
+#pragma warning disable SA1400 // Access modifier must be declared
+        static extern void foo();
+#pragma warning restore SA1400 // Access modifier must be declared
+#pragma warning restore SA1300 // Element must begin with upper-case letter
+
         [Test]
         public static void Execute(IMachineRuntime r)
         {
@@ -170,6 +135,10 @@ namespace Microsoft.PSharp.Tests.Launcher
         public static async Task Main()
         {
             Console.WriteLine("Start...");
+            var config = Configuration.Create().WithVerbosityEnabled().WithNumberOfIterations(2);
+            var test = TestingEngineFactory.CreateBugFindingEngine(config, Execute);
+            test.Run();
+            Console.WriteLine("End...");
             await Task.CompletedTask;
         }
     }

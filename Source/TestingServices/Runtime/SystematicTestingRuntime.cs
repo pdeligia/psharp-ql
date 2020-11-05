@@ -273,14 +273,35 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         /// </summary>
         internal void RunTestHarness(Delegate test, string testName)
         {
-            this.Assert(Task.CurrentId != null, "The test harness machine must execute inside a task.");
-            this.Assert(test != null, "The test harness machine cannot execute a null test.");
+            try
+            {
+                this.Assert(Task.CurrentId != null, "The test harness machine must execute inside a task.");
+                this.Assert(test != null, "The test harness machine cannot execute a null test.");
 
-            testName = string.IsNullOrEmpty(testName) ? "anonymous" : testName;
-            this.Logger.WriteLine($"<TestLog> Running test '{testName}'.");
+                testName = string.IsNullOrEmpty(testName) ? "anonymous" : testName;
+                this.Logger.WriteLine($"<TestLog> Running test '{testName}'.");
 
-            var machine = new TestEntryPointWorkMachine(this, test);
-            this.DispatchWork(machine, null);
+                var machine = new TestEntryPointWorkMachine(this, test);
+                this.DispatchWork(machine, null);
+            }
+            catch (Exception ex)
+            {
+                Exception innerException = ex;
+                while (innerException is TargetInvocationException)
+                {
+                    innerException = innerException.InnerException;
+                }
+
+                if (innerException is AggregateException)
+                {
+                    innerException = innerException.InnerException;
+                }
+
+                if (!(innerException is ExecutionCanceledException))
+                {
+                    throw;
+                }
+            }
         }
 
         /// <summary>
@@ -402,7 +423,8 @@ namespace Microsoft.PSharp.TestingServices.Runtime
                 "Machine id '{0}' of a previously halted machine cannot be reused to create a new machine of type '{1}'",
                 mid.Value, type.FullName);
             this.CreatedMachineIds.Add(mid);
-            this.MachineOperations.GetOrAdd(mid.Value, new MachineOperation(machine));
+            var op = this.MachineOperations.GetOrAdd(mid.Value, new MachineOperation(machine));
+            this.Scheduler.CreateOperation(op);
 
             this.LogWriter.OnCreateMachine(mid, creator?.Id);
 
@@ -588,6 +610,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         private void RunMachineEventHandler(Machine machine, Event initialEvent, bool isFresh, Machine syncCaller, EventInfo enablingEvent)
         {
             MachineOperation op = this.GetAsynchronousOperation(machine.Id.Value);
+            this.Scheduler.CreateOperation(op);
 
             Task task = new Task(async () =>
             {
@@ -597,7 +620,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
 
                 try
                 {
-                    OperationScheduler.NotifyOperationStarted(op);
+                    this.Scheduler.StartOperation(op);
 
                     if (isFresh)
                     {
@@ -613,15 +636,16 @@ namespace Microsoft.PSharp.TestingServices.Runtime
 
                     IO.Debug.WriteLine($"<ScheduleDebug> Completed event handler of '{machine.Id}' on task '{Task.CurrentId}'.");
                     op.OnCompleted();
+                    this.Scheduler.CompleteOperation(op);
 
-                    if (machine.IsHalted)
-                    {
-                        this.Scheduler.ScheduleNextOperation(AsyncOperationType.Stop, AsyncOperationTarget.Task, machine.Id.Value);
-                    }
-                    else
-                    {
-                        this.Scheduler.ScheduleNextOperation(AsyncOperationType.Receive, AsyncOperationTarget.Inbox, machine.Id.Value);
-                    }
+                    // if (machine.IsHalted)
+                    // {
+                    //    this.Scheduler.ScheduleNextOperation(AsyncOperationType.Stop, AsyncOperationTarget.Task, machine.Id.Value);
+                    // }
+                    // else
+                    // {
+                    //    this.Scheduler.ScheduleNextOperation(AsyncOperationType.Receive, AsyncOperationTarget.Inbox, machine.Id.Value);
+                    // }
 
                     IO.Debug.WriteLine($"<ScheduleDebug> Terminated event handler of '{machine.Id}' on task '{Task.CurrentId}'.");
                     ResetProgramCounter(machine);
@@ -675,7 +699,8 @@ namespace Microsoft.PSharp.TestingServices.Runtime
             this.Scheduler.NotifyOperationCreated(op, task);
 
             task.Start(this.TaskScheduler);
-            this.Scheduler.WaitForOperationToStart(op);
+            // this.Scheduler.WaitForOperationToStart(op);
+            this.Scheduler.WaitOperationStart(op);
         }
 
         /// <summary>
@@ -946,6 +971,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
             // this.Scheduler.ScheduleNextOperation(AsyncOperationType.Create, AsyncOperationTarget.Task, ulong.MaxValue);
 
             MachineOperation op = new MachineOperation(machine);
+            this.Scheduler.CreateOperation(op);
 
             this.MachineOperations.GetOrAdd(machine.Id.Value, op);
             this.MachineMap.TryAdd(machine.Id, machine);
@@ -964,14 +990,15 @@ namespace Microsoft.PSharp.TestingServices.Runtime
 
                 try
                 {
-                    OperationScheduler.NotifyOperationStarted(op);
+                    this.Scheduler.StartOperation(op);
 
                     await machine.ExecuteAsync();
 
                     IO.Debug.WriteLine($"<ScheduleDebug> Completed '{machine.Id}' on task '{Task.CurrentId}'.");
                     op.OnCompleted();
+                    this.Scheduler.CompleteOperation(op);
 
-                    this.Scheduler.ScheduleNextOperation(AsyncOperationType.Stop, AsyncOperationTarget.Task, machine.Id.Value);
+                    // this.Scheduler.ScheduleNextOperation(AsyncOperationType.Stop, AsyncOperationTarget.Task, machine.Id.Value);
 
                     IO.Debug.WriteLine($"<ScheduleDebug> Terminated '{machine.Id}' on task '{Task.CurrentId}'.");
                 }
@@ -1024,7 +1051,8 @@ namespace Microsoft.PSharp.TestingServices.Runtime
 
             task.Start();
             // task.Start(this.TaskScheduler);
-            this.Scheduler.WaitForOperationToStart(op);
+            // this.Scheduler.WaitForOperationToStart(op);
+            this.Scheduler.WaitOperationStart(op);
 
             this.Scheduler.ScheduleNextOperation(AsyncOperationType.Yield, AsyncOperationTarget.Task, machine.Id.Value);
         }
@@ -1980,6 +2008,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
                 this.Monitors.Clear();
                 this.MachineMap.Clear();
                 this.MachineOperations.Clear();
+                this.Scheduler.Dispose();
             }
 
             base.Dispose(disposing);

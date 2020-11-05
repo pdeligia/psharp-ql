@@ -17,12 +17,13 @@ using Microsoft.PSharp.TestingServices.Scheduling.Strategies;
 using Microsoft.PSharp.TestingServices.Tracing.Schedule;
 using Microsoft.PSharp.Utilities;
 
+#pragma warning disable SA1005 // Single line comments must begin with single space
 namespace Microsoft.PSharp.TestingServices.Scheduling
 {
     /// <summary>
     /// Provides methods for controlling the schedule of asynchronous operations.
     /// </summary>
-    internal class OperationScheduler : IDisposable
+    internal abstract class OperationScheduler : IDisposable
     {
         /// <summary>
         /// The configuration used by the scheduler.
@@ -42,7 +43,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// Map from unique ids to asynchronous operations.
         /// </summary>
-        private readonly Dictionary<ulong, MachineOperation> OperationMap;
+        protected readonly Dictionary<ulong, MachineOperation> OperationMap;
 
         /// <summary>
         /// Map from ids of tasks that are controlled by the runtime to operations.
@@ -67,7 +68,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// The currently scheduled asynchronous operation.
         /// </summary>
-        internal MachineOperation ScheduledOperation { get; private set; }
+        internal abstract MachineOperation ScheduledOperation { get; }
 
         /// <summary>
         /// Number of scheduled steps.
@@ -107,6 +108,26 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.HasFullyExploredSchedule = false;
         }
 
+        internal abstract int CreateOperation(MachineOperation op);
+
+        internal abstract int StartOperation(MachineOperation op);
+
+        internal abstract int WaitOperationStart(MachineOperation op);
+
+        internal abstract int CompleteOperation(MachineOperation op);
+
+        internal abstract int CreateResource(ulong id);
+
+        internal abstract int AcquireResource(ulong id);
+
+        internal abstract int ReleaseResource(ulong id);
+
+        internal abstract int ScheduleNextOperation();
+
+        internal abstract bool GetNextBoolean(ulong maxValue);
+
+        internal abstract int GetNextInteger(ulong maxValue);
+
         /// <summary>
         /// Schedules the next asynchronous operation.
         /// </summary>
@@ -114,11 +135,11 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         {
             int? taskId = Task.CurrentId;
 
-            // If the caller is the root task, then return.
-            if (taskId != null && taskId == this.Runtime.RootTaskId)
-            {
-                return;
-            }
+            //// If the caller is the root task, then return.
+            //if (taskId != null && taskId == this.Runtime.RootTaskId)
+            //{
+            //    return;
+            //}
 
             if (!this.IsSchedulerRunning)
             {
@@ -126,35 +147,33 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 throw new ExecutionCanceledException();
             }
 
-            // Checks if concurrency not controlled by the runtime was used.
-            this.CheckNoExternalConcurrencyUsed();
+            // If the caller is the root task, then return.
+            if (taskId != null && taskId != this.Runtime.RootTaskId)
+            {
+                // Checks if concurrency not controlled by the runtime was used.
+                this.CheckNoExternalConcurrencyUsed();
 
-            // Checks if the scheduling steps bound has been reached.
-            this.CheckIfSchedulingStepsBoundIsReached();
+                // Checks if the scheduling steps bound has been reached.
+                this.CheckIfSchedulingStepsBoundIsReached();
 
-            MachineOperation current = this.ScheduledOperation;
-            current.SetNextOperation(type, target, targetId);
+                MachineOperation current = this.ScheduledOperation;
+                current.SetNextOperation(type, target, targetId);
 
-            // Update the current execution state.
-            current.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
-            current.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
-            current.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
-            current.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
+                this.ControlledTaskMap.GetOrAdd(Task.CurrentId.Value, current);
+            }
 
             // Try enable any operation that is currently waiting, but has
             // its dependencies already satisfied.
-            foreach (var op in this.OperationMap.Values)
-            {
-                op.TryEnable();
-                Debug.WriteLine("<ScheduleDebug> Operation '{0}' has status '{1}'.", op.SourceId, op.Status);
-            }
+            //foreach (var op in this.OperationMap.Values)
+            //{
+            //    op.TryEnable();
+            //    Debug.WriteLine("<ScheduleDebug> Operation '{0}' has status '{1}'.", op.SourceId, op.Status);
+            //}
 
-            // Get and order the operations by their id.
-            var ops = this.OperationMap.Values.OrderBy(op => op.SourceId).Select(op => op as IAsyncOperation).ToList();
-            if (!this.Strategy.GetNext(current, ops, out IAsyncOperation next))
+            if (!this.OperationMap.Values.Any(op => op.Status == AsyncOperationStatus.Enabled))
             {
                 // Checks if the program has livelocked.
-                this.CheckIfProgramHasLivelocked(ops.Select(op => op as MachineOperation));
+                //this.CheckIfProgramHasLivelocked(ops.Select(op => op as MachineOperation));
 
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
                 this.HasFullyExploredSchedule = true;
@@ -162,48 +181,64 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 throw new ExecutionCanceledException();
             }
 
-            this.ScheduledOperation = next as MachineOperation;
-            this.ScheduleTrace.AddSchedulingChoice(next.SourceId);
+            int result = this.ScheduleNextOperation();
+            Debug.WriteLine($"<Native> schedule next error code is {result}");
 
-            Debug.WriteLine($"<ScheduleDebug> Scheduling the next operation of '{next.SourceName}'.");
+            // Get and order the operations by their id.
+            //var ops = this.OperationMap.Values.OrderBy(op => op.SourceId).Select(op => op as IAsyncOperation).ToList();
+            //if (!this.Strategy.GetNext(current, ops, out IAsyncOperation next))
+            //{
+            //    // Checks if the program has livelocked.
+            //    this.CheckIfProgramHasLivelocked(ops.Select(op => op as MachineOperation));
 
-            if (current != next)
-            {
-                current.IsActive = false;
-                lock (next)
-                {
-                    this.ScheduledOperation.IsActive = true;
-                    System.Threading.Monitor.PulseAll(next);
-                }
+            //    Debug.WriteLine("<ScheduleDebug> Schedule explored.");
+            //    this.HasFullyExploredSchedule = true;
+            //    this.Stop();
+            //    throw new ExecutionCanceledException();
+            //}
 
-                lock (current)
-                {
-                    if (!current.IsHandlerRunning)
-                    {
-                        return;
-                    }
+            //this.ScheduledOperation = next as MachineOperation;
+            //this.ScheduleTrace.AddSchedulingChoice(next.SourceId);
 
-                    if (!this.ControlledTaskMap.ContainsKey(Task.CurrentId.Value))
-                    {
-                        this.ControlledTaskMap.TryAdd(Task.CurrentId.Value, current);
-                        Debug.WriteLine($"<ScheduleDebug> Operation '{current.SourceId}' is associated with task '{Task.CurrentId}'.");
-                    }
+            //Debug.WriteLine($"<ScheduleDebug> Scheduling the next operation of '{next.SourceName}'.");
 
-                    while (!current.IsActive)
-                    {
-                        Debug.WriteLine($"<ScheduleDebug> Sleeping the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-                        System.Threading.Monitor.Wait(current);
-                        Debug.WriteLine($"<ScheduleDebug> Waking up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-                    }
+            //if (current != next)
+            //{
+            //    current.IsActive = false;
+            //    lock (next)
+            //    {
+            //        this.ScheduledOperation.IsActive = true;
+            //        System.Threading.Monitor.PulseAll(next);
+            //    }
 
-                    Debug.WriteLine($"<ScheduleDebug> Woke up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-                    if (current.Status != AsyncOperationStatus.Enabled)
-                    {
-                        Debug.WriteLine($"<ScheduleDebug> Woke[2] up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-                        throw new ExecutionCanceledException();
-                    }
-                }
-            }
+            //    lock (current)
+            //    {
+            //        if (!current.IsHandlerRunning)
+            //        {
+            //            return;
+            //        }
+
+            //        if (!this.ControlledTaskMap.ContainsKey(Task.CurrentId.Value))
+            //        {
+            //            this.ControlledTaskMap.TryAdd(Task.CurrentId.Value, current);
+            //            Debug.WriteLine($"<ScheduleDebug> Operation '{current.SourceId}' is associated with task '{Task.CurrentId}'.");
+            //        }
+
+            //        while (!current.IsActive)
+            //        {
+            //            Debug.WriteLine($"<ScheduleDebug> Sleeping the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
+            //            System.Threading.Monitor.Wait(current);
+            //            Debug.WriteLine($"<ScheduleDebug> Waking up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
+            //        }
+
+            //        Debug.WriteLine($"<ScheduleDebug> Woke up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
+            //        if (current.Status != AsyncOperationStatus.Enabled)
+            //        {
+            //            Debug.WriteLine($"<ScheduleDebug> Woke[2] up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
+            //            throw new ExecutionCanceledException();
+            //        }
+            //    }
+            //}
         }
 
         /// <summary>
@@ -216,12 +251,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
             // Checks if the scheduling steps bound has been reached.
             this.CheckIfSchedulingStepsBoundIsReached();
-
-            // Update the current execution state.
-            this.ScheduledOperation.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
-            this.ScheduledOperation.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
-            this.ScheduledOperation.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
-            this.ScheduledOperation.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
 
             if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
             {
@@ -252,12 +281,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
             // Checks if the scheduling steps bound has been reached.
             this.CheckIfSchedulingStepsBoundIsReached();
-
-            // Update the current execution state.
-            this.ScheduledOperation.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
-            this.ScheduledOperation.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
-            this.ScheduledOperation.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
-            this.ScheduledOperation.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
 
             if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
             {
@@ -302,40 +325,15 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.ControlledTaskMap.TryAdd(task.Id, op);
             if (!this.OperationMap.ContainsKey(op.SourceId))
             {
-                if (this.OperationMap.Count == 0)
-                {
-                    this.ScheduledOperation = op;
-                }
+                //if (this.OperationMap.Count == 0)
+                //{
+                //    this.ScheduledOperation = op;
+                //}
 
                 this.OperationMap.Add(op.SourceId, op);
             }
 
             Debug.WriteLine($"<ScheduleDebug> Registering the current operation of '{op.SourceName}'.");
-        }
-
-        /// <summary>
-        /// Notify that the specified asynchronous operation has started.
-        /// </summary>
-        internal static void NotifyOperationStarted(MachineOperation op)
-        {
-            Debug.WriteLine($"<ScheduleDebug> Starting the current operation of '{op.SourceName}' on task '{Task.CurrentId}'.");
-
-            lock (op)
-            {
-                op.IsHandlerRunning = true;
-                System.Threading.Monitor.PulseAll(op);
-                while (!op.IsActive)
-                {
-                    Debug.WriteLine($"<ScheduleDebug> Sleeping the current operation of '{op.SourceName}' on task '{Task.CurrentId}'.");
-                    System.Threading.Monitor.Wait(op);
-                    Debug.WriteLine($"<ScheduleDebug> Waking up the current operation of '{op.SourceName}' on task '{Task.CurrentId}'.");
-                }
-
-                if (op.Status != AsyncOperationStatus.Enabled)
-                {
-                    throw new ExecutionCanceledException();
-                }
-            }
         }
 
         /// <summary>
@@ -569,7 +567,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// Stops the scheduler.
         /// </summary>
-        private void Stop()
+        protected virtual void Stop()
         {
             this.IsSchedulerRunning = false;
             this.KillRemainingOperations();
