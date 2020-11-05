@@ -134,7 +134,19 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// Captures metadata related to the current execution step, and returns
         /// a value representing the current program state.
         /// </summary>
-        internal int CaptureExecutionStep(IAsyncOperation current)
+        internal void CaptureExecutionStep(int def, int inbox, int custom, int full)
+        {
+            this.DefaultHashedStates.Add(def);
+            this.InboxOnlyHashedStates.Add(inbox);
+            this.CustomHashedStates.Add(custom);
+            this.FullHashedStates.Add(full);
+        }
+
+        /// <summary>
+        /// Captures metadata related to the current execution step, and returns
+        /// a value representing the current program state.
+        /// </summary>
+        private int CaptureExecutionStep(IAsyncOperation current)
         {
             int state = current.DefaultHashedState;
             this.DefaultHashedStates.Add(current.DefaultHashedState);

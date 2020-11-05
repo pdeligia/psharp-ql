@@ -47,8 +47,11 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             ScheduleTrace trace, Configuration configuration)
             : base(runtime, strategy, trace, configuration)
         {
-            this.SchedulerPtr = create_scheduler_with_random_strategy(1);
+            this.SchedulerPtr = create_scheduler();
         }
+
+        [DllImport("coyote.dll")]
+        private static extern IntPtr create_scheduler();
 
         [DllImport("coyote.dll")]
         private static extern IntPtr create_scheduler_with_random_strategy(ulong seed);

@@ -181,15 +181,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 MachineOperation current = this.ScheduledOperation;
                 current.SetNextOperation(type, target, targetId);
 
-                // Update the current execution state.
-                current.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
-                current.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
-                current.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
-                current.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
-
-                ((this.Strategy as TemperatureCheckingStrategy).SchedulingStrategy as RandomStrategy).
-                    CaptureExecutionStep(current);
-
                 this.ControlledTaskMap.GetOrAdd(Task.CurrentId.Value, current);
             }
 
@@ -203,6 +194,13 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             //    op.TryEnable();
             //    Debug.WriteLine("<ScheduleDebug> Operation '{0}' has status '{1}'.", op.SourceId, op.Status);
             //}
+
+            // Update the current execution state.
+            ((this.Strategy as TemperatureCheckingStrategy).SchedulingStrategy as RandomStrategy).
+                CaptureExecutionStep(this.Runtime.GetHashedExecutionState(AbstractionLevel.Default),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
             if (!this.OperationMap.Values.Any(op => op.Status == AsyncOperationStatus.Enabled))
             {
@@ -293,11 +291,13 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.CheckIfSchedulingStepsBoundIsReached();
 
             // Update the current execution state.
-            this.ScheduledOperation.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
-            this.ScheduledOperation.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
-            this.ScheduledOperation.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
-            this.ScheduledOperation.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
+            ((this.Strategy as TemperatureCheckingStrategy).SchedulingStrategy as RandomStrategy).
+                CaptureExecutionStep(this.Runtime.GetHashedExecutionState(AbstractionLevel.Default),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
+            // int choice = this.GetNextBoolean();
             if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
@@ -329,11 +329,13 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.CheckIfSchedulingStepsBoundIsReached();
 
             // Update the current execution state.
-            this.ScheduledOperation.DefaultHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Default);
-            this.ScheduledOperation.InboxOnlyHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly);
-            this.ScheduledOperation.CustomHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom);
-            this.ScheduledOperation.FullHashedState = this.Runtime.GetHashedExecutionState(AbstractionLevel.Full);
+            ((this.Strategy as TemperatureCheckingStrategy).SchedulingStrategy as RandomStrategy).
+                CaptureExecutionStep(this.Runtime.GetHashedExecutionState(AbstractionLevel.Default),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.InboxOnly),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
+                this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
+            // int choice = this.GetNextInteger((ulong)maxValue);
             if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
             {
                 Debug.WriteLine("<ScheduleDebug> Schedule explored.");
