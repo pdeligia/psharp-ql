@@ -148,9 +148,6 @@ namespace Microsoft.PSharp.TestingServices
                     // Runs the test inside the test-harness machine.
                     runtime.RunTestHarness(this.TestMethod, this.TestName);
 
-                    // Wait for the test to terminate.
-                    runtime.WaitAsync().Wait();
-
                     // Invokes user-provided cleanup for this iteration.
                     if (this.TestIterationDisposeMethod != null)
                     {

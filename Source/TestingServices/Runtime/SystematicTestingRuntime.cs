@@ -273,22 +273,19 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         /// </summary>
         internal void RunTestHarness(Delegate test, string testName)
         {
-            Task.Run(() =>
-            {
-                this.Assert(Task.CurrentId != null, "The test harness machine must execute inside a task.");
-                this.Assert(test != null, "The test harness machine cannot execute a null test.");
+            this.Assert(Task.CurrentId != null, "The test harness machine must execute inside a task.");
+            this.Assert(test != null, "The test harness machine cannot execute a null test.");
 
-                testName = string.IsNullOrEmpty(testName) ? "anonymous" : testName;
-                this.Logger.WriteLine($"<TestLog> Running test '{testName}'.");
+            testName = string.IsNullOrEmpty(testName) ? "anonymous" : testName;
+            this.Logger.WriteLine($"<TestLog> Running test '{testName}'.");
 
-                this.Scheduler.Attach();
+            this.Scheduler.Attach();
 
-                var machine = new TestEntryPointWorkMachine(this, test);
-                this.DispatchWork(machine, null);
+            var machine = new TestEntryPointWorkMachine(this, test);
+            this.DispatchWork(machine, null);
 
-                // Task.Delay(1000).Wait();
-                this.Scheduler.Detach();
-            });
+            this.IsRunning = false;
+            this.Scheduler.Detach();
         }
 
         /// <summary>
@@ -1045,15 +1042,6 @@ namespace Microsoft.PSharp.TestingServices.Runtime
             this.Scheduler.WaitOperationStart(op);
 
             // this.Scheduler.ScheduleNextOperation(AsyncOperationType.Yield, AsyncOperationTarget.Task, machine.Id.Value);
-        }
-
-        /// <summary>
-        /// Waits until all machines have finished execution.
-        /// </summary>
-        internal async Task WaitAsync()
-        {
-            await this.Scheduler.WaitAsync();
-            this.IsRunning = false;
         }
 
         /// <summary>

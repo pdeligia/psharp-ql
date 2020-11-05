@@ -63,11 +63,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         internal ScheduleTrace ScheduleTrace;
 
         /// <summary>
-        /// The scheduler completion source.
-        /// </summary>
-        private readonly TaskCompletionSource<bool> CompletionSource;
-
-        /// <summary>
         /// Checks if the scheduler is running.
         /// </summary>
         private bool IsSchedulerRunning;
@@ -110,7 +105,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.OperationMap = new Dictionary<ulong, MachineOperation>();
             this.ControlledTaskMap = new ConcurrentDictionary<int, MachineOperation>();
             this.ScheduleTrace = trace;
-            this.CompletionSource = new TaskCompletionSource<bool>();
             this.IsSchedulerRunning = true;
             this.BugFound = false;
             this.HasFullyExploredSchedule = false;
@@ -192,21 +186,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
         internal void Attach() => _ = attach(this.SchedulerPtr);
 
-        internal void Detach()
-        {
-            _ = detach(this.SchedulerPtr);
-
-            if (!this.CompletionSource.Task.IsCompleted)
-            {
-                lock (this.CompletionSource)
-                {
-                    if (!this.CompletionSource.Task.IsCompleted)
-                    {
-                        this.CompletionSource.SetResult(true);
-                    }
-                }
-            }
-        }
+        internal void Detach() => _ = detach(this.SchedulerPtr);
 
         /// <summary>
         /// Schedules the next asynchronous operation.
@@ -242,14 +222,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             // Checks if the scheduling steps bound has been reached.
             this.CheckIfSchedulingStepsBoundIsReached();
 
-            // Try enable any operation that is currently waiting, but has
-            // its dependencies already satisfied.
-            //foreach (var op in this.OperationMap.Values)
-            //{
-            //    op.TryEnable();
-            //    Debug.WriteLine("<ScheduleDebug> Operation '{0}' has status '{1}'.", op.SourceId, op.Status);
-            //}
-
             // Update the current execution state.
             ((this.Strategy as TemperatureCheckingStrategy).SchedulingStrategy as RandomStrategy).
                 CaptureExecutionStep(this.Runtime.GetHashedExecutionState(AbstractionLevel.Default),
@@ -279,62 +251,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             {
                 throw new ExecutionCanceledException();
             }
-
-            // Get and order the operations by their id.
-            //var ops = this.OperationMap.Values.OrderBy(op => op.SourceId).Select(op => op as IAsyncOperation).ToList();
-            //if (!this.Strategy.GetNext(current, ops, out IAsyncOperation next))
-            //{
-            //    // Checks if the program has livelocked.
-            //    this.CheckIfProgramHasLivelocked(ops.Select(op => op as MachineOperation));
-
-            //    Debug.WriteLine("<ScheduleDebug> Schedule explored.");
-            //    this.HasFullyExploredSchedule = true;
-            //    this.Stop();
-            //    throw new ExecutionCanceledException();
-            //}
-
-            //this.ScheduledOperation = next as MachineOperation;
-            //this.ScheduleTrace.AddSchedulingChoice(next.SourceId);
-
-            //Debug.WriteLine($"<ScheduleDebug> Scheduling the next operation of '{next.SourceName}'.");
-
-            //if (current != next)
-            //{
-            //    current.IsActive = false;
-            //    lock (next)
-            //    {
-            //        this.ScheduledOperation.IsActive = true;
-            //        System.Threading.Monitor.PulseAll(next);
-            //    }
-
-            //    lock (current)
-            //    {
-            //        if (!current.IsHandlerRunning)
-            //        {
-            //            return;
-            //        }
-
-            //        if (!this.ControlledTaskMap.ContainsKey(Task.CurrentId.Value))
-            //        {
-            //            this.ControlledTaskMap.TryAdd(Task.CurrentId.Value, current);
-            //            Debug.WriteLine($"<ScheduleDebug> Operation '{current.SourceId}' is associated with task '{Task.CurrentId}'.");
-            //        }
-
-            //        while (!current.IsActive)
-            //        {
-            //            Debug.WriteLine($"<ScheduleDebug> Sleeping the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-            //            System.Threading.Monitor.Wait(current);
-            //            Debug.WriteLine($"<ScheduleDebug> Waking up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-            //        }
-
-            //        Debug.WriteLine($"<ScheduleDebug> Woke up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-            //        if (current.Status != AsyncOperationStatus.Enabled)
-            //        {
-            //            Debug.WriteLine($"<ScheduleDebug> Woke[2] up the current operation of '{current.SourceName}' on task '{Task.CurrentId}'.");
-            //            throw new ExecutionCanceledException();
-            //        }
-            //    }
-            //}
         }
 
         /// <summary>
@@ -653,11 +569,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         }
 
         /// <summary>
-        /// Waits until the scheduler terminates.
-        /// </summary>
-        internal Task WaitAsync() => this.CompletionSource.Task;
-
-        /// <summary>
         /// Stops the scheduler.
         /// </summary>
         private void Stop()
@@ -666,22 +577,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.IsSchedulerRunning = false;
             this.KillRemainingOperations();
             //this.Detach();
-
-            //this.CompleteOperation(this.ScheduledOperation);
-            //throw new ExecutionCanceledException();
-
-            // Check if the completion source is completed. If not synchronize on
-            // it (as it can only be set once) and set its result.
-            if (!this.CompletionSource.Task.IsCompleted)
-            {
-                lock (this.CompletionSource)
-                {
-                    if (!this.CompletionSource.Task.IsCompleted)
-                    {
-                        this.CompletionSource.SetResult(true);
-                    }
-                }
-            }
 
             this.CompleteOperation(this.ScheduledOperation);
             throw new ExecutionCanceledException();
@@ -696,15 +591,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             {
                 op.IsActive = true;
                 op.Status = AsyncOperationStatus.Completed;
-                //this.CompleteOperation(op);
-
-                //if (op.IsHandlerRunning)
-                //{
-                //    lock (op)
-                //    {
-                //        System.Threading.Monitor.PulseAll(op);
-                //    }
-                //}
             }
         }
 
