@@ -5,7 +5,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+
+using Microsoft.Coyote.Tasks;
 
 namespace Microsoft.PSharp.Runtime
 {
@@ -254,7 +255,7 @@ namespace Microsoft.PSharp.Runtime
 
                 if (receivedEvent == default)
                 {
-                    this.ReceiveCompletionSource = new TaskCompletionSource<Event>();
+                    this.ReceiveCompletionSource = TaskCompletionSource.Create<Event>();
                     this.EventWaitTypes = eventWaitTypes;
                 }
             }

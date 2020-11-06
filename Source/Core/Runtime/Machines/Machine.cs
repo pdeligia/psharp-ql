@@ -12,11 +12,10 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 
+using Microsoft.Coyote.Tasks;
 using Microsoft.PSharp.IO;
 using Microsoft.PSharp.Runtime;
-using Microsoft.PSharp.Threading;
 using Microsoft.PSharp.Timers;
 using Microsoft.PSharp.Utilities;
 
@@ -853,18 +852,6 @@ namespace Microsoft.PSharp
                         // User handled the exception, return normally.
                     }
                 }
-                else if (cachedAction.Handler is Func<MachineTask> machineTaskFunc)
-                {
-                    try
-                    {
-                        // We have no reliable stack for awaited operations.
-                        await machineTaskFunc();
-                    }
-                    catch (Exception ex) when (this.OnExceptionHandler(cachedAction.MethodInfo.Name, ex))
-                    {
-                        // user handled the exception, return normally
-                    }
-                }
             }
             catch (Exception ex)
             {
@@ -884,7 +871,7 @@ namespace Microsoft.PSharp
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> ExecutionCanceledException was thrown from Machine '{this.Id}'.");
                 }
-                else if (innerException is TaskSchedulerException)
+                else if (innerException is System.Threading.Tasks.TaskSchedulerException)
                 {
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> TaskSchedulerException was thrown from Machine '{this.Id}'.");
@@ -961,7 +948,7 @@ namespace Microsoft.PSharp
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> ExecutionCanceledException was thrown from Machine '{this.Id}'.");
                 }
-                else if (innerException is TaskSchedulerException)
+                else if (innerException is System.Threading.Tasks.TaskSchedulerException)
                 {
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> TaskSchedulerException was thrown from Machine '{this.Id}'.");
@@ -1438,19 +1425,19 @@ namespace Microsoft.PSharp
                 }
 
                 // Cache completed.
-                lock (MachineStateCached)
+                using (var monitor = SynchronizedBlock.Lock(MachineStateCached))
                 {
                     MachineStateCached[machineType] = true;
-                    System.Threading.Monitor.PulseAll(MachineStateCached);
+                    monitor.PulseAll();
                 }
             }
             else if (!MachineStateCached[machineType])
             {
-                lock (MachineStateCached)
+                using (var monitor = SynchronizedBlock.Lock(MachineStateCached))
                 {
                     while (!MachineStateCached[machineType])
                     {
-                        System.Threading.Monitor.Wait(MachineStateCached);
+                        monitor.Wait();
                     }
                 }
             }
@@ -1560,7 +1547,7 @@ namespace Microsoft.PSharp
 
             if (method.GetCustomAttribute(typeof(AsyncStateMachineAttribute)) != null)
             {
-                this.Assert(method.ReturnType == typeof(Task) || method.ReturnType == typeof(MachineTask),
+                this.Assert(method.ReturnType == typeof(Task),
                     "Async action '{0}' in machine '{1}' must have 'Task' or 'MachineTask' return type.",
                     method.Name, this.GetType().Name);
             }

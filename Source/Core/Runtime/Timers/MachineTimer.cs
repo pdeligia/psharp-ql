@@ -3,77 +3,84 @@
 // Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------------------------------------------
 
-using System;
-using System.Threading;
+using Microsoft.PSharp.Timers;
 
 namespace Microsoft.PSharp.Timers
 {
     /// <summary>
-    /// A timer that can send timeout events to its owner machine.
+    /// A mock timer that replaces <see cref="MachineTimer"/> during testing.
+    /// It is implemented as a machine.
     /// </summary>
-    internal sealed class MachineTimer : IMachineTimer
+    internal class MachineTimer : Machine, IMachineTimer
     {
         /// <summary>
         /// Stores information about this timer.
         /// </summary>
-        public TimerInfo Info { get; private set; }
+        private TimerInfo TimerInfo;
+
+        /// <summary>
+        /// Stores information about this timer.
+        /// </summary>
+        TimerInfo IMachineTimer.Info => this.TimerInfo;
 
         /// <summary>
         /// The machine that owns this timer.
         /// </summary>
-        private readonly Machine Owner;
-
-        /// <summary>
-        /// The internal timer.
-        /// </summary>
-        private readonly Timer InternalTimer;
+        private Machine Owner;
 
         /// <summary>
         /// The timeout event.
         /// </summary>
-        private readonly TimerElapsedEvent TimeoutEvent;
+        private TimerElapsedEvent TimeoutEvent;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="MachineTimer"/> class.
+        /// Adjusts the probability of firing a timeout event.
         /// </summary>
-        /// <param name="info">Stores information about this timer.</param>
-        /// <param name="owner">The machine that owns this timer.</param>
-        public MachineTimer(TimerInfo info, Machine owner)
+        private uint Delay;
+
+        [Start]
+        [OnEntry(nameof(Setup))]
+        [OnEventDoAction(typeof(Default), nameof(HandleTimeout))]
+        private class Active : MachineState
         {
-            this.Info = info;
-            this.Owner = owner;
+        }
 
-            this.TimeoutEvent = new TimerElapsedEvent(this.Info);
-
-            // To avoid a race condition between assigning the field of the timer
-            // and HandleTimeout accessing the field before the assignment happens,
-            // we first create a timer that cannot get triggered, then assign it to
-            // the field, and finally we start the timer.
-            this.InternalTimer = new Timer(this.HandleTimeout, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            this.InternalTimer.Change(this.Info.DueTime, Timeout.InfiniteTimeSpan);
+        /// <summary>
+        /// Initializes the timer with the specified configuration.
+        /// </summary>
+        private void Setup()
+        {
+            this.TimerInfo = (this.ReceivedEvent as TimerSetupEvent).Info;
+            this.Owner = (this.ReceivedEvent as TimerSetupEvent).Owner;
+            this.Delay = (this.ReceivedEvent as TimerSetupEvent).Delay;
+            this.TimeoutEvent = new TimerElapsedEvent(this.TimerInfo);
         }
 
         /// <summary>
         /// Handles the timeout.
         /// </summary>
-        private void HandleTimeout(object state)
+        private void HandleTimeout()
         {
-            // Send a timeout event.
-            this.Owner.Runtime.SendEvent(this.Owner.Id, this.TimeoutEvent);
-
-            if (this.Info.Period.TotalMilliseconds >= 0)
+            // Try to send the next timeout event.
+            bool isTimeoutSent = false;
+            int delay = (int)this.Delay > 0 ? (int)this.Delay : 1;
+            if ((this.RandomInteger(delay) == 0) && this.FairRandom())
             {
-                // The timer is periodic, so schedule the next timeout.
-                try
-                {
-                    // Start the next timeout period.
-                    this.InternalTimer.Change(this.Info.Period, Timeout.InfiniteTimeSpan);
-                }
-                catch (ObjectDisposedException)
-                {
-                    // Benign race condition while disposing the timer.
-                }
+                // The probability of sending a timeout event is atmost 1/N.
+                this.Send(this.Owner.Id, this.TimeoutEvent);
+                isTimeoutSent = true;
             }
+
+            // If non-periodic, and a timeout was successfully sent, then become
+            // inactive until disposal. Else retry.
+            if (isTimeoutSent && this.TimerInfo.Period.TotalMilliseconds < 0)
+            {
+                this.Goto<Inactive>();
+            }
+        }
+
+        private class Inactive : MachineState
+        {
         }
 
         /// <summary>
@@ -84,7 +91,7 @@ namespace Microsoft.PSharp.Timers
         {
             if (obj is MachineTimer timer)
             {
-                return this.Info == timer.Info;
+                return this.Id == timer.Id;
             }
 
             return false;
@@ -93,12 +100,12 @@ namespace Microsoft.PSharp.Timers
         /// <summary>
         /// Returns the hash code for this instance.
         /// </summary>
-        public override int GetHashCode() => this.Info.GetHashCode();
+        public override int GetHashCode() => this.Id.GetHashCode();
 
         /// <summary>
         /// Returns a string that represents the current instance.
         /// </summary>
-        public override string ToString() => this.Info.ToString();
+        public override string ToString() => this.Id.Name;
 
         /// <summary>
         /// Indicates whether the specified <see cref="MachineId"/> is equal
@@ -116,7 +123,7 @@ namespace Microsoft.PSharp.Timers
         /// </summary>
         public void Dispose()
         {
-            this.InternalTimer.Dispose();
+            this.Runtime.SendEvent(this.Id, new Halt());
         }
     }
 }

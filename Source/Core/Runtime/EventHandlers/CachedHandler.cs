@@ -5,9 +5,8 @@
 
 using System;
 using System.Reflection;
-using System.Threading.Tasks;
 
-using Microsoft.PSharp.Threading;
+using Microsoft.Coyote.Tasks;
 
 namespace Microsoft.PSharp.Runtime
 {
@@ -30,11 +29,7 @@ namespace Microsoft.PSharp.Runtime
             {
                 this.Handler = Delegate.CreateDelegate(typeof(Action), machine, methodInfo);
             }
-            else if (methodInfo.ReturnType == typeof(MachineTask))
-            {
-                this.Handler = Delegate.CreateDelegate(typeof(Func<MachineTask>), machine, methodInfo);
-            }
-            else
+            else if (methodInfo.ReturnType == typeof(Task))
             {
                 this.Handler = Delegate.CreateDelegate(typeof(Func<Task>), machine, methodInfo);
             }

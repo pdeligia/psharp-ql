@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Threading.Tasks;
 
+using Microsoft.Coyote.Tasks;
 using Microsoft.PSharp.IO;
 using Microsoft.PSharp.Runtime;
 using Microsoft.PSharp.Utilities;
@@ -416,7 +416,7 @@ namespace Microsoft.PSharp
                 {
                     Debug.WriteLine($"<Exception> ExecutionCanceledException was thrown from Monitor '{this.GetType().Name}'.");
                 }
-                else if (innerException is TaskSchedulerException)
+                else if (innerException is System.Threading.Tasks.TaskSchedulerException)
                 {
                     Debug.WriteLine($"<Exception> TaskSchedulerException was thrown from Monitor '{this.GetType().Name}'.");
                 }
