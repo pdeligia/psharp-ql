@@ -7,8 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
-using Microsoft.Coyote.Tasks;
 using Microsoft.PSharp.Timers;
 
 namespace Microsoft.PSharp.Runtime

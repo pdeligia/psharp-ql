@@ -4,34 +4,46 @@ namespace Benchmarks.Protocols
 {
     public class Driver
     {
-        [Test]
-        public static void Test_FailureDetector(IMachineRuntime runtime)
+        [Microsoft.Coyote.SystematicTesting.Test]
+        public static void Test_FailureDetector()
         {
+            var runtime = PSharpRuntime.Create(CreateConfiguration());
             FailureDetector.Execute(runtime);
         }
 
-        [Test]
-        public static void Test_CoffeeMachine(IMachineRuntime runtime)
+        [Microsoft.Coyote.SystematicTesting.Test]
+        public static void Test_CoffeeMachine()
         {
+            var runtime = PSharpRuntime.Create(CreateConfiguration());
             CoffeeMachine.Execute(runtime);
         }
 
-        [Test]
-        public static void Test_Chord(IMachineRuntime runtime)
+        [Microsoft.Coyote.SystematicTesting.Test]
+        public static void Test_Chord()
         {
+            var runtime = PSharpRuntime.Create(CreateConfiguration());
             Chord.Execute(runtime);
         }
 
-        [Test]
-        public static void Test_Raft(IMachineRuntime runtime)
+        [Microsoft.Coyote.SystematicTesting.Test]
+        public static void Test_Raft()
         {
+            var runtime = PSharpRuntime.Create(CreateConfiguration());
             Raft.Execute(runtime);
         }
 
-        [Test]
-        public static void Test_Paxos(IMachineRuntime runtime)
+        [Microsoft.Coyote.SystematicTesting.Test]
+        public static void Test_Paxos()
         {
+            var runtime = PSharpRuntime.Create(CreateConfiguration());
             Paxos.Execute(runtime);
+        }
+
+        private static Configuration CreateConfiguration()
+        {
+            var config = Configuration.Create().WithVerbosityEnabled();
+            config.EnableMonitorsInProduction = true;
+            return config;
         }
     }
 }

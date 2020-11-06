@@ -1,0 +1,9 @@
+{
+  "AssembliesPath": "../bin/$(Platform)",
+  "OutputPath": "../bin/$(Platform)",
+  "Assemblies": [
+    "Benchmarks.Protocols.dll",
+    "Microsoft.PSharp.dll"
+  ],
+  "IsRewritingThreads": true
+}

@@ -12,8 +12,8 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
-using Microsoft.Coyote.Tasks;
 using Microsoft.PSharp.IO;
 using Microsoft.PSharp.Runtime;
 using Microsoft.PSharp.Timers;
@@ -871,7 +871,7 @@ namespace Microsoft.PSharp
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> ExecutionCanceledException was thrown from Machine '{this.Id}'.");
                 }
-                else if (innerException is System.Threading.Tasks.TaskSchedulerException)
+                else if (innerException is TaskSchedulerException)
                 {
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> TaskSchedulerException was thrown from Machine '{this.Id}'.");
@@ -948,7 +948,7 @@ namespace Microsoft.PSharp
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> ExecutionCanceledException was thrown from Machine '{this.Id}'.");
                 }
-                else if (innerException is System.Threading.Tasks.TaskSchedulerException)
+                else if (innerException is TaskSchedulerException)
                 {
                     this.IsHalted = true;
                     Debug.WriteLine($"<Exception> TaskSchedulerException was thrown from Machine '{this.Id}'.");
@@ -1425,19 +1425,19 @@ namespace Microsoft.PSharp
                 }
 
                 // Cache completed.
-                using (var monitor = SynchronizedBlock.Lock(MachineStateCached))
+                lock (MachineStateCached)
                 {
                     MachineStateCached[machineType] = true;
-                    monitor.PulseAll();
+                    System.Threading.Monitor.PulseAll(MachineStateCached);
                 }
             }
             else if (!MachineStateCached[machineType])
             {
-                using (var monitor = SynchronizedBlock.Lock(MachineStateCached))
+                lock (MachineStateCached)
                 {
                     while (!MachineStateCached[machineType])
                     {
-                        monitor.Wait();
+                        System.Threading.Monitor.Wait(MachineStateCached);
                     }
                 }
             }

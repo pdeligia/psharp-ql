@@ -4,8 +4,7 @@
 // ------------------------------------------------------------------------------------------------
 
 using System;
-
-using Microsoft.Coyote.Tasks;
+using System.Threading.Tasks;
 
 namespace Microsoft.PSharp.Runtime
 {

@@ -8,7 +8,13 @@
     <OutputPath>..\bin\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
-    <!--<PackageReference Include="Microsoft.PSharp" Version="1.7.0-rl" />-->
+    <PackageReference Include="Microsoft.Coyote" Version="1.2.1" />
+    <Reference Include="Microsoft.Coyote">
+      <HintPath>..\..\..\coyote\bin\netcoreapp3.1\Microsoft.Coyote.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Coyote.Test">
+      <HintPath>..\..\..\coyote\bin\netcoreapp3.1\Microsoft.Coyote.Test.dll</HintPath>
+    </Reference>
     <Reference Include="Microsoft.PSharp">
       <HintPath>..\..\bin\netcoreapp3.1\Microsoft.PSharp.dll</HintPath>
     </Reference>

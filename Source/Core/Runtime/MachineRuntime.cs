@@ -9,8 +9,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
-using Microsoft.Coyote.Tasks;
 using Microsoft.PSharp.IO;
 using Microsoft.PSharp.Timers;
 

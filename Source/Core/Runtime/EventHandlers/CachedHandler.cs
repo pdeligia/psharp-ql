@@ -5,8 +5,7 @@
 
 using System;
 using System.Reflection;
-
-using Microsoft.Coyote.Tasks;
+using System.Threading.Tasks;
 
 namespace Microsoft.PSharp.Runtime
 {
