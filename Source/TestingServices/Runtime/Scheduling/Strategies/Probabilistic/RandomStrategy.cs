@@ -75,7 +75,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// </summary>
         public RandomStrategy(int maxSteps, IRandomNumberGenerator random)
         {
-            this.RandomNumberGenerator = random;
             this.DefaultHashedStates = new HashSet<int>();
             this.InboxOnlyHashedStates = new HashSet<int>();
             this.CustomHashedStates = new HashSet<int>();
@@ -84,6 +83,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
             this.ScheduledSteps = 0;
             this.IsBugFound = false;
             this.Epochs = 0;
+            this.RandomNumberGenerator = random ?? new DefaultRandomNumberGenerator(this.Epochs);
         }
 
         /// <summary>
@@ -178,6 +178,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
 
             this.IsBugFound = false;
             this.ScheduledSteps = 0;
+            this.RandomNumberGenerator = new DefaultRandomNumberGenerator(this.Epochs);
             return true;
         }
 
