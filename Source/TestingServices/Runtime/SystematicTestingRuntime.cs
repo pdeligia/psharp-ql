@@ -98,7 +98,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         /// Initializes a new instance of the <see cref="SystematicTestingRuntime"/> class.
         /// </summary>
         internal SystematicTestingRuntime(Configuration configuration, ISchedulingStrategy strategy,
-            IRegisterRuntimeOperation reporter)
+            IRegisterRuntimeOperation reporter, int iteration)
             : base(configuration)
         {
             this.Monitors = new List<Monitor>();
@@ -123,7 +123,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
                 strategy = new TemperatureCheckingStrategy(configuration, this.Monitors, strategy);
             }
 
-            this.Scheduler = new OperationScheduler(this, strategy, scheduleTrace, this.Configuration);
+            this.Scheduler = new OperationScheduler(this, strategy, scheduleTrace, this.Configuration, iteration);
             this.TaskScheduler = new ControlledTaskScheduler(this, this.Scheduler.ControlledTaskMap);
             // this.SyncContext = new ControlledSynchronizationContext(this);
         }
@@ -687,7 +687,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
 
             task.Start(this.TaskScheduler);
             // this.Scheduler.WaitForOperationToStart(op);
-            this.Scheduler.WaitOperationStart(op);
+            this.Scheduler.ScheduleNextOperation(AsyncOperationType.Yield, AsyncOperationTarget.Task, machine.Id.Value);
         }
 
         /// <summary>
@@ -1039,9 +1039,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
             task.Start();
             // task.Start(this.TaskScheduler);
             // this.Scheduler.WaitForOperationToStart(op);
-            this.Scheduler.WaitOperationStart(op);
-
-            // this.Scheduler.ScheduleNextOperation(AsyncOperationType.Yield, AsyncOperationTarget.Task, machine.Id.Value);
+            this.Scheduler.ScheduleNextOperation(AsyncOperationType.Yield, AsyncOperationTarget.Task, machine.Id.Value);
         }
 
         /// <summary>

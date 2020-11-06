@@ -20,7 +20,7 @@
     <ProjectReference Include="..\Core\Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="..\..\..\coyote-scheduler\bin\coyote.dll">
+    <Content Include="..\Nekara\bin\coyote.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.9.1" PrivateAssets="All" />

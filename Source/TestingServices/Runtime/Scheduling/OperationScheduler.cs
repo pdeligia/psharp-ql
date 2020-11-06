@@ -62,6 +62,8 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// </summary>
         internal ScheduleTrace ScheduleTrace;
 
+        //private readonly ScheduleTrace Mirror;
+
         /// <summary>
         /// Checks if the scheduler is running.
         /// </summary>
@@ -96,9 +98,9 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// Initializes a new instance of the <see cref="OperationScheduler"/> class.
         /// </summary>
         internal OperationScheduler(SystematicTestingRuntime runtime, ISchedulingStrategy strategy,
-            ScheduleTrace trace, Configuration configuration)
+            ScheduleTrace trace, Configuration configuration, int iteration)
         {
-            this.SchedulerPtr = create_scheduler();
+            this.SchedulerPtr = create_scheduler_with_random_strategy((ulong)iteration);
             this.Configuration = configuration;
             this.Runtime = runtime;
             this.Strategy = strategy;
@@ -109,6 +111,9 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             this.BugFound = false;
             this.HasFullyExploredSchedule = false;
             this.ScheduledSteps = 0;
+
+            //string[] scheduleDump = System.IO.File.ReadAllLines(@".\bin\netcoreapp3.1\Output\Benchmarks.Protocols.dll\PSharpTesterOutput\Benchmarks.Protocols_0_2.schedule");
+            //this.Mirror = new ScheduleTrace(scheduleDump);
         }
 
         [DllImport("coyote.dll")]
@@ -172,7 +177,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
         internal int StartOperation(MachineOperation op) => start_operation(this.SchedulerPtr, op.Machine.Id.Value);
 
-        internal int WaitOperationStart(MachineOperation op) => join_operation(this.SchedulerPtr, op.Machine.Id.Value);
+        internal int JoinOperation(MachineOperation op) => join_operation(this.SchedulerPtr, op.Machine.Id.Value);
 
         internal int CompleteOperation(MachineOperation op) => complete_operation(this.SchedulerPtr, op.Machine.Id.Value);
 
@@ -242,11 +247,19 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
             }
 
             int result = this.ScheduleNextOperation();
-            Debug.WriteLine($"<Native> schedule next error code is {result}");
 
             var id = (ulong)scheduled_operation_id(this.SchedulerPtr);
-            this.ScheduledOperation = this.OperationMap[id];
-            Console.WriteLine($"next_operation {id}");
+            if (id > 0)
+            {
+                this.ScheduledOperation = this.OperationMap[id];
+            }
+
+            //Console.WriteLine($"next_operation {id}");
+            //Console.WriteLine($"mirror_operation [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].Type}");
+            //Console.WriteLine($"mirror_operation [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].ScheduledOperationId + 1}");
+            //Console.ReadLine();
+
+            this.ScheduledSteps++;
 
             if (!this.IsSchedulerRunning)
             {
@@ -274,13 +287,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
             maxValue = 2;
             bool choice = Convert.ToBoolean(next_boolean(this.SchedulerPtr));
-            Console.WriteLine($"next_boolean {choice}");
-            //if (!this.Strategy.GetNextBooleanChoice(this.ScheduledOperation, maxValue, out bool choice))
-            //{
-            //    Debug.WriteLine("<ScheduleDebug> Schedule explored.");
-            //    this.Stop();
-            //    throw new ExecutionCanceledException();
-            //}
+            //Console.WriteLine($"next_boolean {choice}");
+            //Console.WriteLine($"mirror_boolean [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].Type}");
+            //Console.WriteLine($"mirror_boolean [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].BooleanChoice}");
+            //Console.ReadLine();
+
+            this.ScheduledSteps++;
 
             if (uniqueId is null)
             {
@@ -313,13 +325,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
             int choice = next_integer(this.SchedulerPtr, (ulong)maxValue);
-            Console.WriteLine($"next_integer {choice}");
-            //if (!this.Strategy.GetNextIntegerChoice(this.ScheduledOperation, maxValue, out int choice))
-            //{
-            //    Debug.WriteLine("<ScheduleDebug> Schedule explored.");
-            //    this.Stop();
-            //    throw new ExecutionCanceledException();
-            //}
+            //Console.WriteLine($"next_integer {choice}");
+            //Console.WriteLine($"mirror_integer [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].Type}");
+            //Console.WriteLine($"mirror_integer [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].IntegerChoice}");
+            //Console.ReadLine();
+
+            this.ScheduledSteps++;
 
             this.ScheduleTrace.AddNondeterministicIntegerChoice(choice);
 
@@ -569,7 +580,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 }
             }
 
-            this.ScheduledSteps++;
+            // this.ScheduledSteps++;
         }
 
         /// <summary>

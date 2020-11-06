@@ -126,7 +126,7 @@ namespace Microsoft.PSharp.TestingServices
                     }
                     else
                     {
-                        runtime = new SystematicTestingRuntime(this.Configuration, this.Strategy, this.Reporter);
+                        runtime = new SystematicTestingRuntime(this.Configuration, this.Strategy, this.Reporter, 0);
                     }
 
                     // Set the current specification checker and threading scheduler.
