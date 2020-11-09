@@ -327,6 +327,11 @@ namespace Microsoft.PSharp
         ILogger SetLogger(ILogger logger);
 
         /// <summary>
+        /// Waits until all machines have finished execution.
+        /// </summary>
+        Task WaitAsync();
+
+        /// <summary>
         /// Terminates the runtime and notifies each active machine to halt execution.
         /// </summary>
         void Stop();

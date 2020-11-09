@@ -1,10 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
 using Microsoft.PSharp;
 
 namespace Benchmarks.Protocols
 {
     internal class Raft
     {
+        internal readonly static ConcurrentDictionary<int, bool> States = new ConcurrentDictionary<int, bool>();
+        internal static int BugsFound = 0;
+        internal static object BugsFoundLock = new object();
+
         public static void Execute(IMachineRuntime runtime)
         {
             runtime.RegisterMonitor(typeof(SafetyMonitor));
@@ -378,6 +385,8 @@ namespace Benchmarks.Protocols
                         hash += (hash * 397) + (this.CurrentState?.FullName.GetHashCode() ?? "None".GetHashCode());
                         hash += (hash * 397) + (this.VotedFor?.GetHashCode() ?? "None".GetHashCode());
                         hash += (hash * 397) + VotesReceived.GetHashCode();
+
+                        States.GetOrAdd(hash, true);
 
                         return hash;
                     }
@@ -942,8 +951,8 @@ namespace Benchmarks.Protocols
 
             void ShuttingDown()
             {
-                //this.Send(this.ElectionTimer, new Halt());
-                //this.Send(this.PeriodicTimer, new Halt());
+                this.Send(this.ElectionTimer, new Halt());
+                this.Send(this.PeriodicTimer, new Halt());
 
                 this.Raise(new Halt());
             }
@@ -1101,7 +1110,8 @@ namespace Benchmarks.Protocols
                 }
                 else
                 {
-                    this.Raise(new CancelTimerEvent());
+                    // this.Raise(new CancelTimerEvent());
+                    this.Raise(new Halt());
                 }
             }
 
@@ -1168,7 +1178,8 @@ namespace Benchmarks.Protocols
 
                 if (this.Count is 10)
                 {
-                    this.Raise(new CancelTimerEvent());
+                    // this.Raise(new CancelTimerEvent());
+                    this.Raise(new Halt());
                 }
 
                 this.Count++;
@@ -1179,7 +1190,7 @@ namespace Benchmarks.Protocols
             class Inactive : MachineState { }
         }
 
-        private class SafetyMonitor : Monitor
+        private class SafetyMonitor : Microsoft.PSharp.Monitor
         {
             internal class NotifyLeaderElected : Event
             {
@@ -1215,6 +1226,14 @@ namespace Benchmarks.Protocols
             void ProcessLeaderElected()
             {
                 var term = (this.ReceivedEvent as NotifyLeaderElected).Term;
+
+                if (this.TermsWithLeader.Contains(term))
+                {
+                    lock (BugsFoundLock)
+                    {
+                        BugsFound++;
+                    }
+                }
 
                 this.Assert(!this.TermsWithLeader.Contains(term), "Detected more than one leader in term " + term);
                 this.TermsWithLeader.Add(term);

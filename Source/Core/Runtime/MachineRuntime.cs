@@ -720,6 +720,11 @@ namespace Microsoft.PSharp.Runtime
         }
 
         /// <summary>
+        /// Waits until all machines have finished execution.
+        /// </summary>
+        public abstract Task WaitAsync();
+
+        /// <summary>
         /// Disposes runtime resources.
         /// </summary>
         public void Dispose()

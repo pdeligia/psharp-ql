@@ -642,6 +642,11 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         }
 
         /// <summary>
+        /// Waits until all machines have finished execution.
+        /// </summary>
+        public override Task WaitAsync() => Task.CompletedTask;
+
+        /// <summary>
         /// Disposes runtime resources.
         /// </summary>
         protected override void Dispose(bool disposing)

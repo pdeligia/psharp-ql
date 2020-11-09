@@ -25,12 +25,16 @@ namespace Microsoft.PSharp.Runtime
         /// </summary>
         private readonly List<Monitor> Monitors;
 
+        private int EventCount = 0;
+        private static readonly object EventCountLock = new object();
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ProductionRuntime"/> class.
         /// </summary>
         internal ProductionRuntime()
             : this(Configuration.Create())
         {
+            this.EventCount = 0;
         }
 
         /// <summary>
@@ -275,6 +279,11 @@ namespace Microsoft.PSharp.Runtime
         /// </summary>
         private EnqueueStatus EnqueueEvent(MachineId target, Event e, AsyncMachine sender, Guid opGroupId, out Machine targetMachine)
         {
+            lock (EventCountLock)
+            {
+                this.EventCount++;
+            }
+
             if (target is null)
             {
                 string message = sender != null ?
@@ -719,6 +728,30 @@ namespace Microsoft.PSharp.Runtime
         internal override void NotifyReceivedEventWithoutWaiting(Machine machine, Event e, EventInfo eventInfo)
         {
             this.LogWriter.OnReceive(machine.Id, machine.CurrentStateName, e.GetType().FullName, wasBlocked: false);
+        }
+
+        /// <summary>
+        /// Waits until all machines have finished execution.
+        /// </summary>
+        public override async Task WaitAsync()
+        {
+            int prevEventCount = 0;
+            while (true)
+            {
+                await Task.Delay(50);
+                var newEventCount = 0;
+                lock (EventCountLock)
+                {
+                    newEventCount = this.EventCount;
+                }
+
+                if (this.MachineMap.Count is 0 || !this.IsRunning || prevEventCount == newEventCount)
+                {
+                    break;
+                }
+
+                prevEventCount = newEventCount;
+            }
         }
 
         /// <summary>

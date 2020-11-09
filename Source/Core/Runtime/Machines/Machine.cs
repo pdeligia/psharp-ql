@@ -552,6 +552,8 @@ namespace Microsoft.PSharp
             Event lastDequeuedEvent = null;
             while (!this.IsHalted && this.Runtime.IsRunning)
             {
+                _ = this.HashedState;
+
                 (DequeueStatus status, Event e, Guid opGroupId, EventInfo info) = this.Inbox.Dequeue();
                 if (opGroupId != Guid.Empty)
                 {

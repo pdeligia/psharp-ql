@@ -1032,7 +1032,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         /// <summary>
         /// Waits until all machines have finished execution.
         /// </summary>
-        internal async Task WaitAsync()
+        public override async Task WaitAsync()
         {
             await this.Scheduler.WaitAsync();
             this.IsRunning = false;
