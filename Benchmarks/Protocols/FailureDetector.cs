@@ -118,6 +118,8 @@ namespace Benchmarks.Protocols
             /// </summary>
             HashSet<MachineId> Clients;
 
+            int Round;
+
             /// <summary>
             /// Number of made 'Ping' attempts.
             /// </summary>
@@ -317,11 +319,20 @@ namespace Benchmarks.Protocols
             /// </summary>
             void ResetOnEntry()
             {
+                this.Round++;
                 this.Attempts = 0;
                 this.Responses.Clear();
 
-                // Starts the timer with a given timeout value (see details above).
-                this.Send(this.Timer, new Timer.StartTimerEvent(1000));
+                if (this.Round < 5)
+                {
+                    // Starts the timer with a given timeout value (see details above).
+                    this.Send(this.Timer, new Timer.StartTimerEvent(1000));
+                }
+                else
+                {
+                    this.Send(this.Timer, new Halt());
+                    this.Raise(new Halt());
+                }
             }
         }
 
