@@ -244,7 +244,8 @@ namespace Microsoft.PSharp.TestingServices
                 ScheduleTrace schedule = new ScheduleTrace(scheduleDump);
                 this.Strategy = new ReplayStrategy(this.Configuration, schedule, isFair);
             }
-            else if (this.Configuration.SchedulingStrategy == SchedulingStrategy.Random)
+            else if (this.Configuration.SchedulingStrategy == SchedulingStrategy.Random ||
+                this.Configuration.SchedulingStrategy == SchedulingStrategy.PCT)
             {
                 this.Strategy = new RandomStrategy(this.Configuration.MaxFairSchedulingSteps, this.RandomNumberGenerator);
             }

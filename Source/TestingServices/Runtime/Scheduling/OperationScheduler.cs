@@ -100,7 +100,15 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         internal OperationScheduler(SystematicTestingRuntime runtime, ISchedulingStrategy strategy,
             ScheduleTrace trace, Configuration configuration, int iteration)
         {
-            this.SchedulerPtr = create_scheduler_with_random_strategy((ulong)iteration);
+            if (this.Configuration.SchedulingStrategy == SchedulingStrategy.Random)
+            {
+                this.SchedulerPtr = create_scheduler_with_random_strategy((ulong)iteration);
+            }
+            else if (this.Configuration.SchedulingStrategy == SchedulingStrategy.PCT)
+            {
+                this.SchedulerPtr = create_scheduler_with_pct_strategy((ulong)iteration, this.Configuration.PrioritySwitchBound);
+            }
+
             this.Configuration = configuration;
             this.Runtime = runtime;
             this.Strategy = strategy;
@@ -121,6 +129,9 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
         [DllImport("coyote.dll")]
         private static extern IntPtr create_scheduler_with_random_strategy(ulong seed);
+
+        [DllImport("coyote.dll")]
+        private static extern IntPtr create_scheduler_with_pct_strategy(ulong seed, int bound);
 
         [DllImport("coyote.dll")]
         private static extern int attach(IntPtr scheduler);
