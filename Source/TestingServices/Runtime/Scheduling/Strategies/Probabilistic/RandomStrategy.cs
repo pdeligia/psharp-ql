@@ -178,10 +178,10 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
                     this.Epochs == 5120 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
                     this.Epochs == 81920 || this.Epochs == 163840)
                 {
-                    Console.WriteLine($"==================> #{this.Epochs} Default States (size: {this.DefaultHashedStates.Count})");
-                    Console.WriteLine($"==================> #{this.Epochs} Inbox-Only States (size: {this.InboxOnlyHashedStates.Count})");
+                    // Console.WriteLine($"==================> #{this.Epochs} Default States (size: {this.DefaultHashedStates.Count})");
+                    // Console.WriteLine($"==================> #{this.Epochs} Inbox-Only States (size: {this.InboxOnlyHashedStates.Count})");
                     Console.WriteLine($"==================> #{this.Epochs} Custom States (size: {this.CustomHashedStates.Count})");
-                    Console.WriteLine($"==================> #{this.Epochs} Full States (size: {this.FullHashedStates.Count})");
+                    // Console.WriteLine($"==================> #{this.Epochs} Full States (size: {this.FullHashedStates.Count})");
                 }
 
                 this.Epochs++;
