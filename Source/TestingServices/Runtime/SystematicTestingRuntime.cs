@@ -98,7 +98,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
         /// Initializes a new instance of the <see cref="SystematicTestingRuntime"/> class.
         /// </summary>
         internal SystematicTestingRuntime(Configuration configuration, ISchedulingStrategy strategy,
-            IRegisterRuntimeOperation reporter, int iteration)
+            IRegisterRuntimeOperation reporter)
             : base(configuration)
         {
             this.Monitors = new List<Monitor>();
@@ -123,7 +123,7 @@ namespace Microsoft.PSharp.TestingServices.Runtime
                 strategy = new TemperatureCheckingStrategy(configuration, this.Monitors, strategy);
             }
 
-            this.Scheduler = new OperationScheduler(this, strategy, scheduleTrace, this.Configuration, iteration);
+            this.Scheduler = new OperationScheduler(this, strategy, scheduleTrace, this.Configuration);
             this.TaskScheduler = new ControlledTaskScheduler(this, this.Scheduler.ControlledTaskMap);
             // this.SyncContext = new ControlledSynchronizationContext(this);
         }

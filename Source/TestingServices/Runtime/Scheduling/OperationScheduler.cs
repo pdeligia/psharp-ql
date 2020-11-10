@@ -18,6 +18,7 @@ using Microsoft.PSharp.TestingServices.Scheduling.Strategies;
 using Microsoft.PSharp.TestingServices.Tracing.Schedule;
 using Microsoft.PSharp.Utilities;
 
+#pragma warning disable CA1822
 #pragma warning disable SA1300 // Element must begin with upper-case letter
 #pragma warning disable SA1005 // Single line comments must begin with single space
 namespace Microsoft.PSharp.TestingServices.Scheduling
@@ -30,7 +31,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// <summary>
         /// The native scheduler.
         /// </summary>
-        private IntPtr SchedulerPtr;
+        private static IntPtr SchedulerPtr;
 
         /// <summary>
         /// The configuration used by the scheduler.
@@ -98,18 +99,23 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         /// Initializes a new instance of the <see cref="OperationScheduler"/> class.
         /// </summary>
         internal OperationScheduler(SystematicTestingRuntime runtime, ISchedulingStrategy strategy,
-            ScheduleTrace trace, Configuration configuration, int iteration)
+            ScheduleTrace trace, Configuration configuration)
         {
             this.Configuration = configuration;
             this.Runtime = runtime;
 
-            if (this.Configuration.SchedulingStrategy == SchedulingStrategy.PCT)
+            ulong seed = (ulong)this.Configuration.SchedulingSeed;
+            if (SchedulerPtr == IntPtr.Zero)
             {
-                this.SchedulerPtr = create_scheduler_with_pct_strategy((ulong)iteration, this.Configuration.PrioritySwitchBound);
-            }
-            else
-            {
-                this.SchedulerPtr = create_scheduler_with_random_strategy((ulong)iteration);
+                if (this.Configuration.SchedulingStrategy == SchedulingStrategy.PCT)
+                {
+                    Console.WriteLine($"PrioritySwitchBound: {this.Configuration.PrioritySwitchBound}");
+                    SchedulerPtr = create_scheduler_with_pct_strategy(seed, (ulong)this.Configuration.PrioritySwitchBound);
+                }
+                else
+                {
+                    SchedulerPtr = create_scheduler_with_random_strategy(seed);
+                }
             }
 
             this.Strategy = strategy;
@@ -132,7 +138,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         private static extern IntPtr create_scheduler_with_random_strategy(ulong seed);
 
         [DllImport("coyote.dll")]
-        private static extern IntPtr create_scheduler_with_pct_strategy(ulong seed, int bound);
+        private static extern IntPtr create_scheduler_with_pct_strategy(ulong seed, ulong bound);
 
         [DllImport("coyote.dll")]
         private static extern int attach(IntPtr scheduler);
@@ -185,25 +191,25 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
         [DllImport("coyote.dll")]
         private static extern int dispose_scheduler(IntPtr scheduler);
 
-        internal int CreateOperation(MachineOperation op) => create_operation(this.SchedulerPtr, op.Machine.Id.Value);
+        internal int CreateOperation(MachineOperation op) => create_operation(SchedulerPtr, op.Machine.Id.Value);
 
-        internal int StartOperation(MachineOperation op) => start_operation(this.SchedulerPtr, op.Machine.Id.Value);
+        internal int StartOperation(MachineOperation op) => start_operation(SchedulerPtr, op.Machine.Id.Value);
 
-        internal int JoinOperation(MachineOperation op) => join_operation(this.SchedulerPtr, op.Machine.Id.Value);
+        internal int JoinOperation(MachineOperation op) => join_operation(SchedulerPtr, op.Machine.Id.Value);
 
-        internal int CompleteOperation(MachineOperation op) => complete_operation(this.SchedulerPtr, op.Machine.Id.Value);
+        internal int CompleteOperation(MachineOperation op) => complete_operation(SchedulerPtr, op.Machine.Id.Value);
 
-        internal int CreateResource(ulong id) => create_operation(this.SchedulerPtr, id);
+        internal int CreateResource(ulong id) => create_operation(SchedulerPtr, id);
 
-        internal int AcquireResource(ulong id) => wait_resource(this.SchedulerPtr, id);
+        internal int AcquireResource(ulong id) => wait_resource(SchedulerPtr, id);
 
-        internal int ReleaseResource(ulong id) => signal_resource(this.SchedulerPtr, id);
+        internal int ReleaseResource(ulong id) => signal_resource(SchedulerPtr, id);
 
-        internal int ScheduleNextOperation() => schedule_next(this.SchedulerPtr);
+        internal int ScheduleNextOperation() => schedule_next(SchedulerPtr);
 
-        internal void Attach() => _ = attach(this.SchedulerPtr);
+        internal void Attach() => _ = attach(SchedulerPtr);
 
-        internal void Detach() => _ = detach(this.SchedulerPtr);
+        internal void Detach() => _ = detach(SchedulerPtr);
 
         /// <summary>
         /// Schedules the next asynchronous operation.
@@ -260,7 +266,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
             int result = this.ScheduleNextOperation();
 
-            var id = (ulong)scheduled_operation_id(this.SchedulerPtr);
+            var id = (ulong)scheduled_operation_id(SchedulerPtr);
             if (id > 0)
             {
                 this.ScheduledOperation = this.OperationMap[id];
@@ -298,7 +304,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
             maxValue = 2;
-            bool choice = Convert.ToBoolean(next_boolean(this.SchedulerPtr));
+            bool choice = Convert.ToBoolean(next_boolean(SchedulerPtr));
             //Console.WriteLine($"next_boolean {choice}");
             //Console.WriteLine($"mirror_boolean [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].Type}");
             //Console.WriteLine($"mirror_boolean [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].BooleanChoice}");
@@ -336,7 +342,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Custom),
                 this.Runtime.GetHashedExecutionState(AbstractionLevel.Full));
 
-            int choice = next_integer(this.SchedulerPtr, (ulong)maxValue);
+            int choice = next_integer(SchedulerPtr, (ulong)maxValue);
             //Console.WriteLine($"next_integer {choice}");
             //Console.WriteLine($"mirror_integer [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].Type}");
             //Console.WriteLine($"mirror_integer [{this.ScheduledSteps}]: {this.Mirror[this.ScheduledSteps].IntegerChoice}");
@@ -623,10 +629,10 @@ namespace Microsoft.PSharp.TestingServices.Scheduling
 
         private void Dispose(bool disposing)
         {
-            if (disposing && this.SchedulerPtr != IntPtr.Zero)
+            if (disposing && SchedulerPtr != IntPtr.Zero)
             {
-                _ = dispose_scheduler(this.SchedulerPtr);
-                this.SchedulerPtr = IntPtr.Zero;
+                //_ = dispose_scheduler(SchedulerPtr);
+                //SchedulerPtr = IntPtr.Zero;
             }
         }
 
