@@ -4,44 +4,49 @@ namespace Benchmarks.Protocols
 {
     public class Driver
     {
+        private static IMachineRuntime Runtime;
+
         [Microsoft.Coyote.SystematicTesting.Test]
         public static void Test_FailureDetector()
         {
-            var runtime = PSharpRuntime.Create(CreateConfiguration());
-            FailureDetector.Execute(runtime);
+            Runtime = PSharpRuntime.Create(CreateConfiguration());
+            FailureDetector.Execute(Runtime);
         }
 
         [Microsoft.Coyote.SystematicTesting.Test]
         public static void Test_CoffeeMachine()
         {
-            var runtime = PSharpRuntime.Create(CreateConfiguration());
-            CoffeeMachine.Execute(runtime);
+            Runtime = PSharpRuntime.Create(CreateConfiguration());
+            CoffeeMachine.Execute(Runtime);
         }
 
         [Microsoft.Coyote.SystematicTesting.Test]
         public static void Test_Chord()
         {
-            var runtime = PSharpRuntime.Create(CreateConfiguration());
-            Chord.Execute(runtime);
+            Runtime = PSharpRuntime.Create(CreateConfiguration());
+            Chord.Execute(Runtime);
         }
 
         [Microsoft.Coyote.SystematicTesting.Test]
         public static void Test_Raft()
         {
-            var runtime = PSharpRuntime.Create(CreateConfiguration());
-            Raft.Execute(runtime);
+            Runtime = PSharpRuntime.Create(CreateConfiguration());
+            Raft.Execute(Runtime);
         }
 
         [Microsoft.Coyote.SystematicTesting.Test]
         public static void Test_Paxos()
         {
-            var runtime = PSharpRuntime.Create(CreateConfiguration());
-            Paxos.Execute(runtime);
+            Runtime = PSharpRuntime.Create(CreateConfiguration());
+            Paxos.Execute(Runtime);
         }
+
+        [Microsoft.Coyote.SystematicTesting.TestStateHash]
+        public static int GetStateHash() => Runtime.GetHashedExecutionState();
 
         private static Configuration CreateConfiguration()
         {
-            var config = Configuration.Create().WithVerbosityEnabled();
+            var config = Configuration.Create();
             config.EnableMonitorsInProduction = true;
             return config;
         }

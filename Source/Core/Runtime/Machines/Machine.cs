@@ -534,7 +534,10 @@ namespace Microsoft.PSharp
                 return EnqueueStatus.Dropped;
             }
 
-            return this.Inbox.Enqueue(e, opGroupId, info);
+            lock (this.Inbox)
+            {
+                return this.Inbox.Enqueue(e, opGroupId, info);
+            }
         }
 
         /// <summary>
@@ -551,7 +554,17 @@ namespace Microsoft.PSharp
             Event lastDequeuedEvent = null;
             while (!this.IsHalted && this.Runtime.IsRunning)
             {
-                (DequeueStatus status, Event e, Guid opGroupId, EventInfo info) = this.Inbox.Dequeue();
+                (DequeueStatus, Event, Guid, EventInfo) dequeueResult;
+                lock (this.Inbox)
+                {
+                    dequeueResult = this.Inbox.Dequeue();
+                }
+
+                DequeueStatus status = dequeueResult.Item1;
+                Event e = dequeueResult.Item2;
+                Guid opGroupId = dequeueResult.Item3;
+                EventInfo info = dequeueResult.Item4;
+
                 if (opGroupId != Guid.Empty)
                 {
                     // Inherit the operation group id of the dequeue or raise operation, if it is non-empty.
@@ -1243,52 +1256,15 @@ namespace Microsoft.PSharp
             unchecked
             {
                 int hash = 37;
-                if (abstractionLevel is AbstractionLevel.Default)
+                // hash = (hash * 397) + this.Inbox.GetCachedState();
+
+                if (this.HashedState != 0)
                 {
-                    hash = (hash * 397) + this.GetType().GetHashCode();
-                    hash = (hash * 397) + this.IsHalted.GetHashCode();
-                    hash = (hash * 397) + this.StateManager.GetCachedState();
-
-                    foreach (var state in this.StateStack)
-                    {
-                        hash = (hash * 397) + state.GetType().GetHashCode();
-                    }
-
-                    hash = (hash * 397) + this.Inbox.GetCachedState();
+                    // Adds the user-defined hashed machine state.
+                    hash = (hash * 397) + this.HashedState;
                 }
-                else if (abstractionLevel is AbstractionLevel.InboxOnly)
-                {
-                    hash = (hash * 397) + this.Inbox.GetCachedState();
-                }
-                else if (abstractionLevel is AbstractionLevel.Custom)
-                {
-                    hash = (hash * 397) + this.Inbox.GetCachedState();
 
-                    if (this.HashedState != 0)
-                    {
-                        // Adds the user-defined hashed machine state.
-                        hash = (hash * 397) + this.HashedState;
-                    }
-                }
-                else if (abstractionLevel is AbstractionLevel.Full)
-                {
-                    hash = (hash * 397) + this.GetType().GetHashCode();
-                    hash = (hash * 397) + this.IsHalted.GetHashCode();
-                    hash = (hash * 397) + this.StateManager.GetCachedState();
-
-                    foreach (var state in this.StateStack)
-                    {
-                        hash = (hash * 397) + state.GetType().GetHashCode();
-                    }
-
-                    hash = (hash * 397) + this.Inbox.GetCachedState();
-
-                    if (this.HashedState != 0)
-                    {
-                        // Adds the user-defined hashed machine state.
-                        hash = (hash * 397) + this.HashedState;
-                    }
-                }
+                // Console.WriteLine($"========> {this.Id} hash is {hash}");
 
                 return hash;
             }

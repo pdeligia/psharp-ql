@@ -112,7 +112,7 @@ namespace Benchmarks.Protocols
                     }
                 }
 
-                this.Assert(newId >= 0, "Cannot create a new node, no ids available.");
+                Microsoft.Coyote.Specifications.Specification.Assert(newId >= 0, "Cannot create a new node, no ids available.");
 
                 var newNode = this.CreateMachine(typeof(ChordNode));
 
@@ -139,7 +139,7 @@ namespace Benchmarks.Protocols
                     }
                 }
 
-                this.Assert(endId >= 0, "Cannot find a node to terminate.");
+                Microsoft.Coyote.Specifications.Specification.Assert(endId >= 0, "Cannot find a node to terminate.");
 
                 var endNode = this.ChordNodes[endId];
 
@@ -513,7 +513,7 @@ namespace Benchmarks.Protocols
                             }
                         }
 
-                        this.Assert(!this.FingerTable[idToAsk].Node.Equals(this.Id),
+                        Microsoft.Coyote.Specifications.Specification.Assert(!this.FingerTable[idToAsk].Node.Equals(this.Id),
                             "Cannot locate successor of {0}.", key);
                     }
 
@@ -541,7 +541,7 @@ namespace Benchmarks.Protocols
                 var sender = (this.ReceivedEvent as AskForKeys).Node;
                 var senderId = (this.ReceivedEvent as AskForKeys).Id;
 
-                this.Assert(this.Predecessor.Equals(sender), "Predecessor is corrupted.");
+                Microsoft.Coyote.Specifications.Specification.Assert(this.Predecessor.Equals(sender), "Predecessor is corrupted.");
 
                 List<int> keysToSend = new List<int>();
                 foreach (var key in this.Keys)
@@ -582,7 +582,7 @@ namespace Benchmarks.Protocols
                 var successor = (this.ReceivedEvent as FindSuccessorResp).Node;
                 var key = (this.ReceivedEvent as FindSuccessorResp).Key;
 
-                this.Assert(this.FingerTable.ContainsKey(key),
+                Microsoft.Coyote.Specifications.Specification.Assert(this.FingerTable.ContainsKey(key),
                     "Finger table of {0} does not contain {1}.", this.NodeId, key);
                 this.FingerTable[key] = new Finger(this.FingerTable[key].Start,
                     this.FingerTable[key].End, successor);

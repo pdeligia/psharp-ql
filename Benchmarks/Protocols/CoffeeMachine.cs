@@ -360,7 +360,7 @@ namespace Benchmarks.Protocols
                     this.WriteLine("{0} shots completed and {1} shots requested!", this.PreviousShotCount, this.ShotsRequested);
                     if (this.PreviousShotCount > this.ShotsRequested)
                     {
-                        this.Assert(false, "Made the wrong number of shots");
+                        Microsoft.Coyote.Specifications.Specification.Assert(false, "Made the wrong number of shots");
                     }
 
                     this.Goto<Cleanup>();
@@ -910,7 +910,7 @@ namespace Benchmarks.Protocols
                     // should never turn on the heater when there is no water to heat
                     if (this.WaterHeaterButton && this.WaterLevel <= 0)
                     {
-                        this.Assert(false, "Please do not turn on heater if there is no water");
+                        Microsoft.Coyote.Specifications.Specification.Assert(false, "Please do not turn on heater if there is no water");
                     }
                 }
             }
@@ -931,7 +931,7 @@ namespace Benchmarks.Protocols
                     // should never turn on the grinder when there is no coffee to grind
                     if (this.HopperLevel <= 0)
                     {
-                        this.Assert(false, "Please do not turn on grinder if there are no beans in the hopper");
+                        Microsoft.Coyote.Specifications.Specification.Assert(false, "Please do not turn on grinder if there are no beans in the hopper");
                     }
 
                     // start monitoring the coffee level.
@@ -955,7 +955,7 @@ namespace Benchmarks.Protocols
                         // should never turn on the make shots button when there is no water
                         if (this.WaterLevel <= 0)
                         {
-                            this.Assert(false, "Please do not turn on shot maker if there is no water");
+                            Microsoft.Coyote.Specifications.Specification.Assert(false, "Please do not turn on shot maker if there is no water");
                         }
 
                         // time the shot then send shot complete event.
@@ -997,7 +997,7 @@ namespace Benchmarks.Protocols
                         break;
 
                     default:
-                        this.Assert(false, "<ErrorLog> Invalid TimerElapsedEvent received");
+                        Microsoft.Coyote.Specifications.Specification.Assert(false, "<ErrorLog> Invalid TimerElapsedEvent received");
                         break;
                 }
             }

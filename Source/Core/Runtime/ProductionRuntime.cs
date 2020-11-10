@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 
 using Microsoft.PSharp.Timers;
+using Microsoft.PSharp.Utilities;
 
 namespace Microsoft.PSharp.Runtime
 {
@@ -345,7 +346,7 @@ namespace Microsoft.PSharp.Runtime
                 {
                     if (machine.IsHalted)
                     {
-                        this.MachineMap.TryRemove(machine.Id, out AsyncMachine _);
+                        // this.MachineMap.TryRemove(machine.Id, out AsyncMachine _);
                     }
                 }
             });
@@ -655,6 +656,34 @@ namespace Microsoft.PSharp.Runtime
         internal override void NotifyReceivedEventWithoutWaiting(Machine machine, Event e, EventInfo eventInfo)
         {
             this.LogWriter.OnReceive(machine.Id, machine.CurrentStateName, e.GetType().FullName, wasBlocked: false);
+        }
+
+        /// <summary>
+        /// Returns the current hashed state of the execution using the specified.
+        /// The hash is updated in each execution step.
+        /// </summary>
+        public override int GetHashedExecutionState()
+        {
+            unchecked
+            {
+                int hash = 14689;
+
+                foreach (var machine in this.MachineMap.Values)
+                {
+                    int machineHash = 37;
+                    machineHash = (machineHash * 397) + machine.GetHashedState(AbstractionLevel.Custom);
+                    hash *= machineHash;
+                }
+
+                foreach (var monitor in this.Monitors)
+                {
+                    hash = (hash * 397) + monitor.GetHashedState();
+                }
+
+                // Console.WriteLine($"========> Runtime hash is {hash}");
+
+                return hash;
+            }
         }
 
         /// <summary>

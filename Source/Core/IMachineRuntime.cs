@@ -312,6 +312,12 @@ namespace Microsoft.PSharp
         Guid GetCurrentOperationGroupId(MachineId currentMachineId);
 
         /// <summary>
+        /// Returns the current hashed state of the execution using the specified.
+        /// The hash is updated in each execution step.
+        /// </summary>
+        int GetHashedExecutionState();
+
+        /// <summary>
         /// Use this method to override the default <see cref="RuntimeLogWriter"/>
         /// for logging runtime messages.
         /// </summary>

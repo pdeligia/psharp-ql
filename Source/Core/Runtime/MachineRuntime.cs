@@ -634,6 +634,12 @@ namespace Microsoft.PSharp.Runtime
         }
 
         /// <summary>
+        /// Returns the current hashed state of the execution using the specified.
+        /// The hash is updated in each execution step.
+        /// </summary>
+        public abstract int GetHashedExecutionState();
+
+        /// <summary>
         /// Throws an <see cref="AssertionFailureException"/> exception
         /// containing the specified exception.
         /// </summary>

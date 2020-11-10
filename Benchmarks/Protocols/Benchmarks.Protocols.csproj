@@ -16,7 +16,7 @@
       <HintPath>..\..\..\coyote\bin\netcoreapp3.1\Microsoft.Coyote.Test.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.PSharp">
-      <HintPath>..\..\bin\netcoreapp3.1\Microsoft.PSharp.dll</HintPath>
+      <HintPath>..\..\bin\netstandard2.1\Microsoft.PSharp.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

@@ -274,7 +274,24 @@ namespace Microsoft.PSharp.Runtime
         /// <summary>
         /// Returns the cached state of the queue.
         /// </summary>
-        public int GetCachedState() => 0;
+        public int GetCachedState()
+        {
+            unchecked
+            {
+                int hash = 37;
+                foreach (var (e, info) in this.Queue)
+                {
+                    hash = (hash * 397) + e.GetType().GetHashCode();
+                    // if (info.HashedState != 0)
+                    // {
+                    //    // Adds the user-defined hashed event state.
+                    //    hash = (hash * 397) + info.HashedState;
+                    // }
+                }
+
+                return hash;
+            }
+        }
 
         /// <summary>
         /// Closes the queue, which stops any further event enqueues.

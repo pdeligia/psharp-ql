@@ -378,7 +378,7 @@ namespace Benchmarks.Protocols
                         hash += (hash * 397) + (this.CurrentState?.FullName.GetHashCode() ?? "None".GetHashCode());
                         hash += (hash * 397) + (this.VotedFor?.GetHashCode() ?? "None".GetHashCode());
                         hash += (hash * 397) + VotesReceived.GetHashCode();
-
+                        // System.Console.WriteLine($"========> Raft hash is {hash}");
                         return hash;
                     }
                 }
@@ -991,6 +991,8 @@ namespace Benchmarks.Protocols
             int LatestCommand;
             int Counter;
 
+            Microsoft.Coyote.Random.Generator Generator;
+
             [Start]
             [OnEntry(nameof(InitOnEntry))]
             [OnEventDoAction(typeof(ConfigureEvent), nameof(Configure))]
@@ -1001,6 +1003,7 @@ namespace Benchmarks.Protocols
             {
                 this.LatestCommand = -1;
                 this.Counter = 0;
+                this.Generator = Microsoft.Coyote.Random.Generator.Create();
             }
 
             void Configure()
@@ -1016,7 +1019,7 @@ namespace Benchmarks.Protocols
 
             void PumpRequestOnEntry()
             {
-                this.LatestCommand = this.RandomInteger(5); //new Random().Next(100);
+                this.LatestCommand = this.Generator.NextInteger(5); // this.RandomInteger(5); //new Random().Next(100);
                 this.Counter++;
 
                 this.Logger.WriteLine("\n [Client] new request " + this.LatestCommand + "\n");
@@ -1060,6 +1063,8 @@ namespace Benchmarks.Protocols
             MachineId Target;
             int Counter;
 
+            Microsoft.Coyote.Random.Generator Generator;
+
             [Start]
             [OnEventDoAction(typeof(ConfigureEvent), nameof(Configure))]
             [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
@@ -1069,6 +1074,7 @@ namespace Benchmarks.Protocols
             {
                 this.Target = (this.ReceivedEvent as ConfigureEvent).Target;
                 this.Counter = 0;
+                this.Generator = Microsoft.Coyote.Random.Generator.Create();
                 //this.Raise(new StartTimerEvent());
             }
 
@@ -1095,7 +1101,7 @@ namespace Benchmarks.Protocols
                     this.Counter = 0;
                 }
 
-                if (this.Random())
+                if (this.Generator.NextBoolean())
                 {
                     this.Send(this.Id, new TickEvent());
                 }
@@ -1133,6 +1139,8 @@ namespace Benchmarks.Protocols
 
             int Count;
 
+            Microsoft.Coyote.Random.Generator Generator;
+
             [Start]
             [OnEventDoAction(typeof(ConfigureEvent), nameof(Configure))]
             [OnEventGotoState(typeof(StartTimerEvent), typeof(Active))]
@@ -1141,6 +1149,7 @@ namespace Benchmarks.Protocols
             void Configure()
             {
                 this.Target = (this.ReceivedEvent as ConfigureEvent).Target;
+                this.Generator = Microsoft.Coyote.Random.Generator.Create();
                 //this.Raise(new StartTimerEvent());
             }
 
@@ -1158,7 +1167,7 @@ namespace Benchmarks.Protocols
 
             void Tick()
             {
-                if (this.Random())
+                if (this.Generator.NextBoolean())
                 {
                     this.Logger.WriteLine("\n [PeriodicTimer] " + this.Target + " | timed out\n");
                     this.Send(this.Target, new TimeoutEvent());
@@ -1216,7 +1225,7 @@ namespace Benchmarks.Protocols
             {
                 var term = (this.ReceivedEvent as NotifyLeaderElected).Term;
 
-                this.Assert(!this.TermsWithLeader.Contains(term), "Detected more than one leader in term " + term);
+                Microsoft.Coyote.Specifications.Specification.Assert(!this.TermsWithLeader.Contains(term), "Detected more than one leader in term " + term);
                 this.TermsWithLeader.Add(term);
             }
         }

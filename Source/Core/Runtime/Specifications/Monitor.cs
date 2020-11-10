@@ -537,31 +537,16 @@ namespace Microsoft.PSharp
         /// <summary>
         /// Returns the hashed state of the monitor using the specified level of abstraction.
         /// </summary>
-        internal int GetHashedState(AbstractionLevel abstractionLevel)
+        internal int GetHashedState()
         {
             unchecked
             {
                 var hash = 19;
 
-                if (abstractionLevel is AbstractionLevel.Default)
-                {
-                    hash = (hash * 31) + this.GetType().GetHashCode();
-                    hash = (hash * 31) + this.CurrentState.GetHashCode();
-                }
-                else if (abstractionLevel is AbstractionLevel.Custom)
-                {
-                    // Adds the user-defined hashed state.
-                    hash = (hash * 31) + this.HashedState;
-                }
-                else if (abstractionLevel is AbstractionLevel.Full)
-                {
-                    hash = (hash * 31) + this.GetType().GetHashCode();
-                    hash = (hash * 31) + this.CurrentState.GetHashCode();
+                // Adds the user-defined hashed state.
+                hash = (hash * 31) + this.HashedState;
 
-                    // Adds the user-defined hashed state.
-                    hash = (hash * 31) + this.HashedState;
-                }
-
+                // Console.WriteLine($"========> Monitor hash is {hash}");
                 return hash;
             }
         }

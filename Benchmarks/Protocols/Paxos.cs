@@ -623,7 +623,7 @@ namespace Benchmarks.Protocols
                         }
                         else
                         {
-                            this.Assert(false, "Conflicting values learned");
+                            Microsoft.Coyote.Specifications.Specification.Assert(false, "Conflicting values learned");
                         }
                     }
                 }
