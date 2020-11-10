@@ -161,7 +161,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
                 this.GetType() != typeof(GreedyRandomStrategy))
             {
 #pragma warning disable SA1005
-                if (this.IsBugFound || this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
+                if (this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
                     this.Epochs == 160 || this.Epochs == 320 || this.Epochs == 640 || this.Epochs == 1280 || this.Epochs == 2560 ||
                     this.Epochs == 5120 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
                     this.Epochs == 81920 || this.Epochs == 163840)

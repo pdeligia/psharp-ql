@@ -278,15 +278,15 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         public bool PrepareForNextIteration()
         {
 #pragma warning disable SA1005
-            if (this.IsBugFound || this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
+            if (this.Epochs == 10 || this.Epochs == 20 || this.Epochs == 40 || this.Epochs == 80 ||
                 this.Epochs == 160 || this.Epochs == 320 || this.Epochs == 640 || this.Epochs == 1280 || this.Epochs == 2560 ||
                 this.Epochs == 5120 || this.Epochs == 10000 || this.Epochs == 10240 || this.Epochs == 20480 || this.Epochs == 40960 ||
                 this.Epochs == 81920 || this.Epochs == 163840)
             {
-                Console.WriteLine($"==================> #{this.Epochs} Default States (size: {this.DefaultHashedStates.Count})");
-                Console.WriteLine($"==================> #{this.Epochs} Inbox-Only States (size: {this.InboxOnlyHashedStates.Count})");
+                // Console.WriteLine($"==================> #{this.Epochs} Default States (size: {this.DefaultHashedStates.Count})");
+                // Console.WriteLine($"==================> #{this.Epochs} Inbox-Only States (size: {this.InboxOnlyHashedStates.Count})");
                 Console.WriteLine($"==================> #{this.Epochs} Custom States (size: {this.CustomHashedStates.Count})");
-                Console.WriteLine($"==================> #{this.Epochs} Full States (size: {this.FullHashedStates.Count})");
+                // Console.WriteLine($"==================> #{this.Epochs} Full States (size: {this.FullHashedStates.Count})");
             }
 
             this.IsBugFound = false;
@@ -364,7 +364,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// <summary>
         /// Checks if this is a fair scheduling strategy.
         /// </summary>
-        public bool IsFair() => false;
+        public bool IsFair() => true;
 
         /// <summary>
         /// Returns a textual description of the scheduling strategy.
