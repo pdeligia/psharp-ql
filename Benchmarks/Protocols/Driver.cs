@@ -33,5 +33,11 @@ namespace Benchmarks.Protocols
         {
             Paxos.Execute(runtime);
         }
+
+        [Test]
+        public static void Test_ChainReplication(IMachineRuntime runtime)
+        {
+            ChainReplication.Execute(runtime);
+        }
     }
 }
