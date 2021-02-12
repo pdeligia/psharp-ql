@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.PSharp.Utilities;
 
 namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
 {
@@ -54,6 +55,16 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         private readonly double Gamma;
 
         /// <summary>
+        /// The distribution scaling strategy for Softmax.
+        /// </summary>
+        private readonly DistributionScaling DistributionScaling;
+
+        /// <summary>
+        /// The threshold for performing scaled average.
+        /// </summary>
+        private readonly double ScaledAverageLowerThreshold;
+
+        /// <summary>
         /// The bug state reward. This gets updated based on the maximum
         /// negative reward seen during the current execution.
         /// </summary>
@@ -78,7 +89,7 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// Initializes a new instance of the <see cref="NoRandomQLearningStrategy"/> class.
         /// It uses the specified random number generator.
         /// </summary>
-        public NoRandomQLearningStrategy(int maxSteps, IRandomNumberGenerator random)
+        public NoRandomQLearningStrategy(int maxSteps, DistributionScaling distributionScaling, IRandomNumberGenerator random)
             : base(maxSteps, random)
         {
             this.OperationQTable = new Dictionary<int, Dictionary<ulong, double>>();
@@ -88,6 +99,8 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
             this.PreviousOperation = 0;
             this.LearningRate = 0.3;
             this.Gamma = 0.7;
+            this.DistributionScaling = distributionScaling;
+            this.ScaledAverageLowerThreshold = -40;
             this.BugStateReward = -1000;
             this.FailureInjectionReward = -1000;
             this.BasicActionReward = -1;
@@ -155,9 +168,29 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         private int ChooseQValueIndexFromDistribution(List<double> qValues)
         {
             double sum = 0;
+            double temperature = 1;
+            if (this.DistributionScaling == DistributionScaling.ScaledAverage)
+            {
+                // double temperature = average < lowerThreshold ? Math.Ceiling(Math.Log10(average / lowerThreshold)) : 1;
+                double average = qValues.Average();
+                if (average < this.ScaledAverageLowerThreshold)
+                {
+                    // The average is too low, scale the average up.
+                    temperature = 10;
+                    int exp = 1;
+                    while (average < this.ScaledAverageLowerThreshold)
+                    {
+                        average /= temperature;
+                        exp++;
+                    }
+
+                    temperature = Math.Pow(temperature, exp);
+                }
+            }
+
             for (int i = 0; i < qValues.Count; i++)
             {
-                qValues[i] = Math.Exp(qValues[i]);
+                qValues[i] = Math.Exp(qValues[i] / temperature);
                 sum += qValues[i];
             }
 
