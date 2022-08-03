@@ -17,11 +17,6 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
     public sealed class QLearningStrategy : RandomStrategy
     {
         /// <summary>
-        /// Determine the abstraction used during exploration.
-        /// </summary>
-        private readonly AbstractionLevel AbstractionLevel;
-
-        /// <summary>
         /// Map from program states to a map from next operations to their quality values.
         /// </summary>
         private readonly Dictionary<int, Dictionary<ulong, double>> OperationQTable;
@@ -80,6 +75,21 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         private readonly double Gamma;
 
         /// <summary>
+        /// Determine the abstraction used during exploration.
+        /// </summary>
+        private readonly AbstractionLevel AbstractionLevel;
+
+        /// <summary>
+        /// The distribution scaling strategy for Softmax.
+        /// </summary>
+        private readonly DistributionScaling DistributionScaling;
+
+        /// <summary>
+        /// The threshold for performing scaled average.
+        /// </summary>
+        private readonly double ScaledAverageLowerThreshold;
+
+        /// <summary>
         /// The op value denoting a true boolean choice.
         /// </summary>
         private readonly ulong TrueChoiceOpValue;
@@ -119,10 +129,10 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// Initializes a new instance of the <see cref="QLearningStrategy"/> class.
         /// It uses the specified random number generator.
         /// </summary>
-        public QLearningStrategy(AbstractionLevel abstractionLevel, int maxSteps, IRandomNumberGenerator random)
+        public QLearningStrategy(int maxSteps, AbstractionLevel abstractionLevel, DistributionScaling distributionScaling,
+            IRandomNumberGenerator random)
             : base(maxSteps, random)
         {
-            this.AbstractionLevel = abstractionLevel;
             this.OperationQTable = new Dictionary<int, Dictionary<ulong, double>>();
             this.ExecutionPath = new LinkedList<(ulong, AsyncOperationType, int)>();
             this.TransitionFrequencies = new Dictionary<int, ulong>();
@@ -134,6 +144,9 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
             this.PreviousOperation = 0;
             this.LearningRate = 0.3;
             this.Gamma = 0.7;
+            this.AbstractionLevel = abstractionLevel;
+            this.DistributionScaling = distributionScaling;
+            this.ScaledAverageLowerThreshold = -40;
             this.TrueChoiceOpValue = ulong.MaxValue;
             this.FalseChoiceOpValue = ulong.MaxValue - 1;
             this.MinIntegerChoiceOpValue = ulong.MaxValue - 2;
@@ -148,6 +161,12 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         /// </summary>
         public override bool GetNext(IAsyncOperation current, List<IAsyncOperation> ops, out IAsyncOperation next)
         {
+            if (this.IsInsideBarrier)
+            {
+                next = current;
+                return true;
+            }
+
             if (!ops.Any(op => op.Status is AsyncOperationStatus.Enabled))
             {
                 // Fail fast if there are no enabled operations.
@@ -258,9 +277,29 @@ namespace Microsoft.PSharp.TestingServices.Scheduling.Strategies
         private int ChooseQValueIndexFromDistribution(List<double> qValues)
         {
             double sum = 0;
+            double temperature = 1;
+            if (this.DistributionScaling == DistributionScaling.ScaledAverage)
+            {
+                // double temperature = average < lowerThreshold ? Math.Ceiling(Math.Log10(average / lowerThreshold)) : 1;
+                double average = qValues.Average();
+                if (average < this.ScaledAverageLowerThreshold)
+                {
+                    // The average is too low, scale the average up.
+                    temperature = 10;
+                    int exp = 1;
+                    while (average < this.ScaledAverageLowerThreshold)
+                    {
+                        average /= temperature;
+                        exp++;
+                    }
+
+                    temperature = Math.Pow(temperature, exp);
+                }
+            }
+
             for (int i = 0; i < qValues.Count; i++)
             {
-                qValues[i] = Math.Exp(qValues[i]);
+                qValues[i] = Math.Exp(qValues[i] / temperature);
                 sum += qValues[i];
             }
 
